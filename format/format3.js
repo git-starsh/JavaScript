@@ -1,6 +1,12 @@
 // 过滤关键词
 const FILTER_KEYWORDS = ['测试', '25', '钱塘江', '开封','熊猫', '语', '洲', 'Doc', '老', '生', '发现'];
-
+// 特殊频道名称映射
+const SPECIAL_CHANNEL_MAPPING = {
+    'CCTV-新闻HD-BST': {
+        name: 'CCTV13',
+        groupName: 'BST-央视'
+    }
+};
 // 组名映射
 const GROUP_NAME_MAPPING = {
 	'央视': '央视频道',
