@@ -1,0 +1,43 @@
+name: Delete Old Commits
+
+on:
+  workflow_dispatch:  # 只保留手动触发，移除定时任务
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1  # 只获取最新提交
+      
+      - name: Configure Git credentials
+        run: |
+          git config --global credential.helper store
+          echo "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com" > ~/.git-credentials
+      
+      - name: Set up Git user
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+      
+      - name: Delete all history, keep only latest commit
+        run: |
+          # 创建新的空分支
+          git checkout --orphan temp
+          
+          # 添加所有文件
+          git add -A
+          
+          # 提交当前状态
+          git commit -m "Initial commit"
+          
+          # 删除原分支
+          git branch -D main
+          
+          # 重命名当前分支为main
+          git branch -m main
+          
+          # 强制推送到远程仓库
+          git push -f origin main    
