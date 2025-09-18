@@ -13,7 +13,7 @@ const CUSTOM_GROUP_RULES = {
 // 组名排序顺序
 const GROUP_NAME_SORT = [ '央视频道', '卫视频道', '地方频道',  '其他频道'];
 // 要过滤的分组列表
-const FILTER_GROUPS = ['体育回看', '港台频道', '冰茶体育', '体育备用','🎀冰茶公告'];
+const FILTER_GROUPS = ['体育回看', '港台频道', '冰茶体育', '体育备用','🎀冰茶公告','咪视界v6'];
 // 工具函数：检查字符串是否包含关键词数组中的任意关键词
 const hasAnyKeyword = (str, keywords) => keywords.some(key => str.includes(key));
 // 净化频道名
