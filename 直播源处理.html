@@ -1,0 +1,3157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="https://raw.githubusercontent.com/git-starsh/disable_update/main/favicon.png" type="image/png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>直播源文件处理</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#60A5FA',
+                        secondary: '#10B981',
+                        accent: '#8B5CF6',
+                        danger: '#EF4444'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'card': '0 4px 20px rgba(0, 0, 0, 0.08)',
+                        'card-hover': '0 10px 30px rgba(0, 0, 0, 0.12)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto { content-visibility: auto; }
+            .scrollbar-thin { scrollbar-width: thin; }
+            .scrollbar-thin::-webkit-scrollbar { width: 4px; height: 4px; }
+            .scrollbar-thin::-webkit-scrollbar-thumb { background-color: rgba(156, 163, 175, 0.5); border-radius: 2px; }
+            .text-balance { text-wrap: balance; }
+            .transition-custom { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+            .config-content { max-height: 0; overflow: hidden; transition: max-height 0.5s ease; }
+            .config-content.open { max-height: 2000px; }
+            .btn-active { transform: translateY(1px); filter: brightness(0.95); }
+            .btn-primary { @apply bg-primary text-white px-4 py-2 rounded-md hover:bg-primary/90 transition-custom focus:outline-none focus:ring-2 focus:ring-primary/50 active:btn-active; }
+            .btn-secondary { @apply bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-custom focus:outline-none focus:ring-2 focus:ring-gray-500/50 active:btn-active; }
+            .btn-danger { @apply bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-custom focus:outline-none focus:ring-2 focus:ring-red-500/50 active:btn-active; }
+            .btn-success { @apply bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-custom focus:outline-none focus:ring-2 focus:ring-green-500/50 active:btn-active; }
+            .btn-info { @apply bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-custom focus:outline-none focus:ring-2 focus:ring-blue-500/50 active:btn-active; }
+            .btn-warning { @apply bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-custom focus:outline-none focus:ring-2 focus:ring-purple-500/50 active:btn-active; }
+            .input-base { @apply p-3 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-custom bg-gray-50; }
+            .card-base { @apply bg-white rounded-xl shadow-card p-5 transition-custom hover:shadow-card-hover; }
+            .checkbox-base { @apply w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded transition-custom; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen text-gray-800 font-inter antialiased transition-custom">
+    <!-- 顶部导航栏 -->
+    <header class="bg-white/80 backdrop-blur-md shadow-sm fixed w-full top-0 z-50 transition-all">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-video-camera text-primary text-2xl"></i>
+                <h1 class="text-xl md:text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">直播源文件处理</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <!-- 配置管理按钮 -->
+                <button id="configManagerBtn" title="配置管理" class="text-gray-600 hover:text-primary transition-all p-2 rounded-full hover:bg-primary/5 focus:outline-none focus:ring-2 focus:ring-primary/30">
+                    <i class="fa fa-cogs"></i>
+                </button>
+                <button id="helpBtn" class="text-gray-600 hover:text-primary transition-all p-2 rounded-full hover:bg-primary/5 focus:outline-none focus:ring-2 focus:ring-primary/30">
+                    <i class="fa fa-question-circle"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要内容 -->
+    <main class="container mx-auto px-4 pt-24 pb-16">
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <!-- 上传区域 -->
+        <section class="bg-white rounded-xl shadow-card p-6 transition-custom hover:shadow-card-hover transform hover:-translate-y-1 md:col-span-2 xl:col-span-3">
+          <h2 class="text-xl font-semibold mb-4 flex items-center">
+            <i class="fa fa-upload text-primary mr-2"></i>上传直播源文件
+          </h2>
+          <div id="dropArea" class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary transition-custom cursor-pointer group bg-gray-50 hover:bg-primary/5">
+            <i class="fa fa-file-text-o text-5xl text-gray-400 mb-3 group-hover:text-primary transition-custom"></i>
+            <p class="mb-3 text-gray-600">拖放m3u或txt文件到此处（支持多文件），或</p>
+            <label class="inline-flex items-center bg-primary text-white py-2.5 px-5 rounded-md hover:bg-primary/90 transition-custom cursor-pointer shadow-md hover:shadow-lg transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-primary/50 active:btn-active">
+                <i class="fa fa-folder-open mr-2"></i>选择文件
+                <input type="file" id="fileInput" accept=".m3u,.txt" multiple class="hidden">
+            </label>
+            <p class="mt-3 text-sm text-gray-500">支持格式: .m3u, .txt</p>
+          </div>
+          <!-- 新增：URL导入区域 -->
+          <div class="mt-6 bg-gray-50 rounded-lg p-4 border border-gray-100">
+            <div class="flex items-center mb-2">
+              <i class="fa fa-link text-primary mr-2"></i>
+              <span class="font-medium text-gray-700">从URL导入（支持多URL，换行分隔）</span>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-2">
+              <textarea id="urlInput" class="flex-1 p-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-custom h-16 resize-y bg-white" placeholder="输入m3u或txt文件的URL，每行一个..."></textarea>
+              <button id="importUrlBtn" class="flex-shrink-0 bg-primary text-white px-4 py-2 rounded-md hover:bg-primary/90 transition-custom shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-primary/50 active:btn-active">
+                <i class="fa fa-download mr-1"></i>下载并解析
+              </button>
+            </div>
+            <div id="urlImportStatus" class="mt-2 text-sm text-gray-500"></div>
+          </div>
+          <div id="fileInfo" class="mt-4 hidden">
+            <div class="bg-gray-50 rounded-md border border-gray-100 overflow-hidden">
+              <div class="flex items-center justify-between p-3 border-b border-gray-100">
+                <div class="flex items-center">
+                  <i class="fa fa-files-o text-primary mr-2"></i>
+                  <span id="fileName" class="font-medium"></span>
+                  <span id="fileSize" class="ml-2 text-sm text-gray-500"></span>
+                </div>
+                <button id="removeFile" class="text-red-500 hover:text-red-700 transition-custom p-1.5 rounded-full hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-200 active:btn-active" title="移除所有文件">
+                  <i class="fa fa-times"></i>
+                </button>
+              </div>
+              <div id="fileList" class="max-h-40 overflow-y-auto">
+                <!-- 文件列表将在这里动态生成 -->
+              </div>
+            </div>
+          </div>
+        </section>
+        
+        <!-- 过滤去重配置 -->
+        <section class="bg-white rounded-xl shadow-card p-5 transition-custom hover:shadow-card-hover">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold flex items-center">
+              <i class="fa fa-filter text-primary mr-2"></i>过滤去重
+            </h2>
+          </div>
+          <div id="filterKeywordsContent" class="config-content open">
+            <p class="text-gray-600 mb-3 text-sm text-balance">包含这些关键词的频道将被过滤掉（每行一个关键词），不包含的频道将保留</p>
+            <textarea id="filterKeywords" class="w-full p-3 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-custom h-32 resize-none bg-gray-50" placeholder="输入关键词，每行一个..."></textarea>
+            
+            <div class="mt-4 pt-4 border-t border-gray-100">
+              <div class="flex items-center mb-2">
+                <input type="checkbox" id="enableDuplicateRemoval" class="checkbox-base" checked>
+                <label for="enableDuplicateRemoval" class="ml-2 text-gray-700">启用直播源去重功能</label>
+              </div>
+              <p class="text-xs text-gray-500 ml-6">开启后将自动去除重复的直播源URL，保留第一个出现的源</p>
+            </div>
+          </div>
+        </section>
+        
+        <!-- 频道名映射配置 -->
+        <section class="bg-white rounded-xl shadow-card p-4 transition-custom hover:shadow-card-hover">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold flex items-center">
+              <i class="fa fa-sign-language text-primary mr-2"></i>频道名映射与UA设置
+            </h2>
+          </div>
+          <div id="channelMappingContent" class="config-content open">
+            <p class="text-gray-600 mb-3 text-sm text-balance">将原始频道名映射到新频道名（格式：原始频道名=新频道名），映射后的频道名将进行净化处理</p>
+            <div id="channelMappingContainer" class="space-y-2 mb-3 max-h-24 overflow-y-auto scrollbar-thin pr-1"></div>
+            <div class="w-full flex items-center gap-1 mb-2" style="min-width: 0;">
+              <div class="flex-1 min-w-0 flex items-center gap-1">
+                <input type="text" id="newChannelKey" placeholder="原始频道名" class="flex-1 min-w-0 p-2 h-10 border border-gray-200 bg-white rounded-l-md text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-custom" style="min-width: 0;">
+                <span class="flex-shrink-0 px-2 text-gray-500">=</span>
+                <input type="text" id="newChannelValue" placeholder="新频道名" class="flex-1 min-w-0 p-2 h-10 border border-gray-200 bg-white rounded-r-md text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-custom" style="min-width: 0;">
+              </div>
+              <button id="addChannelMapping" class="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-primary text-white rounded-r-md hover:bg-primary/90 transition-custom focus:outline-none focus:ring-2 focus:ring-primary/50 active:btn-active">
+                <i class="fa fa-plus"></i>
+              </button>
+            </div>
+            
+            <!-- User-Agent 设置 -->
+            <div class="border-t border-gray-100 pt-4">
+              <h3 class="text-sm font-medium text-gray-700 mb-2 flex items-center">
+                <i class="fa fa-globe text-accent mr-1"></i>M3U文件User-Agent设置
+              </h3>
+              <div class="space-y-2">
+                <div>
+                  <label for="m3uUserAgent" class="block text-sm font-medium text-gray-700 mb-1">User-Agent</label>
+                  <input type="text" id="m3uUserAgent" class="w-full p-3 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-custom bg-gray-50" placeholder="如 okhttp">
+                  <p class="mt-1 text-xs text-gray-500">设置生成的M3U文件中所有频道的http-user-agent属性，留空则不添加此属性</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        
+        <!-- 频道名净化规则 -->
+        <section class="bg-white rounded-xl shadow-card p-5 transition-custom hover:shadow-card-hover">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold flex items-center">
+              <i class="fa fa-magic text-primary mr-2"></i>频道名净化规则
+            </h2>
+          </div>
+          <div id="purificationRulesContent" class="config-content open">
+            <p class="text-gray-600 mb-4 text-sm text-balance">配置频道名净化规则，勾选的规则将在处理时应用</p>
+            
+            <div class="space-y-3 mb-5">
+              <div class="flex items-center">
+                <input type="checkbox" id="ruleRemoveBrackets" class="w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded transition-custom" checked>
+                <label for="ruleRemoveBrackets" class="ml-2 text-gray-700">移除括号及其中内容（包括中英文括号）</label>
+              </div>
+              
+              <div class="flex items-center">
+                <input type="checkbox" id="ruleRemoveNumberPrefix" class="w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded transition-custom" checked>
+                <label for="ruleRemoveNumberPrefix" class="ml-2 text-gray-700">移除数字前缀（如"1-CCTV1" → "CCTV1"）</label>
+              </div>
+              
+              <div class="flex items-center">
+                <input type="checkbox" id="ruleRemoveModifiers" class="w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded transition-custom" checked>
+                <label for="ruleRemoveModifiers" class="ml-2 text-gray-700">移除多余修饰词（如"高清"、"标清"等）</label>
+              </div>
+              
+              <div class="flex items-center">
+                <input type="checkbox" id="ruleStandardizeCCTV" class="w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded transition-custom" checked>
+                <label for="ruleStandardizeCCTV" class="ml-2 text-gray-700">标准化CCTV频道命名</label>
+              </div>
+              
+              <div class="flex items-center">
+                <input type="checkbox" id="ruleUppercaseCCTV" class="w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded transition-custom" checked>
+                <label for="ruleUppercaseCCTV" class="ml-2 text-gray-700">将小写cctv转为大写CCTV</label>
+              </div>
+            </div>
+            
+            <div>
+              <label for="modifierWords" class="block text-sm font-medium text-gray-700 mb-2">
+                要移除的修饰词（用逗号分隔）
+              </label>
+              <input type="text" id="modifierWords" class="w-full p-3 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-custom bg-gray-50" placeholder="例如：高清,标清,-HD,HD,超清">
+            </div>
+          </div>
+        </section>
+        
+        <!-- 组名映射配置 -->
+        <section class="bg-white rounded-xl shadow-card p-4 transition-custom hover:shadow-card-hover">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold flex items-center">
+              <i class="fa fa-exchange text-primary mr-2"></i>组名映射
+            </h2>
+          </div>
+          <div id="groupMappingContent" class="config-content open">
+            <p class="text-gray-600 mb-3 text-sm text-balance">将原始组名映射到新组名（格式：原始组名=新组名），未映射的组名将保持原样</p>
+            <div id="groupMappingContainer" class="space-y-2 mb-3 max-h-60 overflow-y-auto scrollbar-thin pr-1"></div>
+            <div class="w-full flex items-center gap-1 mb-2" style="min-width: 0;">
+              <div class="flex-1 min-w-0 flex items-center gap-1">
+                <input type="text" id="newGroupKey" placeholder="原始组名" class="flex-1 min-w-0 p-2 h-10 border border-gray-200 bg-white rounded-l-md text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-custom" style="min-width: 0;">
+                <span class="flex-shrink-0 px-2 text-gray-500">=</span>
+                <input type="text" id="newGroupValue" placeholder="新组名" class="flex-1 min-w-0 p-2 h-10 border border-gray-200 bg-white rounded-r-md text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-custom" style="min-width: 0;">
+              </div>
+              <button id="addGroupMapping" class="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-primary text-white rounded-r-md hover:bg-primary/90 transition-custom focus:outline-none focus:ring-2 focus:ring-primary/50 active:btn-active">
+                <i class="fa fa-plus"></i>
+              </button>
+            </div>
+          </div>
+        </section>
+        
+        <!-- 自定义分组规则 -->
+        <section class="bg-white rounded-xl shadow-card p-4 transition-custom hover:shadow-card-hover">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold flex items-center">
+              <i class="fa fa-tags text-primary mr-2"></i>自定义分组规则
+            </h2>
+          </div>
+          <div id="customGroupRulesContent" class="config-content open">
+            <p class="text-gray-600 mb-3 text-sm text-balance">根据关键词将频道分配到指定分组（格式：分组名=关键词1,关键词2...），不匹配任何规则的频道将保留原分组</p>
+            <div id="customGroupRulesContainer" class="space-y-3 mb-3 max-h-60 overflow-y-auto scrollbar-thin pr-1"></div>
+            <div class="w-full flex items-center gap-1 mb-2" style="min-width: 0;">
+              <div class="flex-1 min-w-0 flex items-center gap-1">
+                <select id="newGroupRuleName" class="flex-1 min-w-0 p-2 h-10 border border-gray-200 rounded-l-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm transition-custom" style="min-width: 0;">
+                  <option value="">请选择分组名</option>
+                </select>
+                <span class="px-2 text-gray-500">=</span>
+                <input type="text" id="newGroupRuleKeywords" placeholder="关键词，用逗号分隔" class="flex-1 min-w-0 p-2 h-10 border border-gray-200 rounded-r-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-custom" style="min-width: 0;">
+              </div>
+              <button id="addCustomGroupRule" class="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-primary text-white rounded-r-md hover:bg-primary/90 transition-custom focus:outline-none focus:ring-2 focus:ring-primary/50 active:btn-active">
+                <i class="fa fa-plus"></i>
+              </button>
+            </div>
+          </div>
+        </section>
+        
+        <!-- 源排序与过滤规则 -->
+        <section class="bg-white rounded-xl shadow-card p-5 transition-custom hover:shadow-card-hover">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold flex items-center">
+              <i class="fa fa-sort-numeric-asc text-primary mr-2"></i>源排序与过滤
+            </h2>
+          </div>
+          <div id="sourceSortingContent" class="config-content open">
+            <p class="text-gray-600 mb-4 text-sm text-balance">从URL中提取源标识，并按优先级对同一频道的不同源进行排序</p>
+            
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                源标识关键词（用逗号分隔，按优先级排序）
+              </label>
+              <input type="text" id="sourceIdentifiers" class="w-full p-3 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-custom bg-gray-50" placeholder="例如：bst,migu">
+            </div>
+            
+            <!-- 源标识屏蔽功能 -->
+            <div class="mb-4 border-t border-gray-100 pt-4">
+              <h3 class="text-sm font-medium text-gray-700 mb-2 flex items-center">
+                <i class="fa fa-ban text-danger mr-1"></i>源标识屏蔽设置
+              </h3>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                要屏蔽的源标识（用逗号分隔）
+              </label>
+              <input type="text" id="blockedSourceIdentifiers" class="w-full p-3 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-danger/30 focus:border-danger transition-custom bg-gray-50" placeholder="例如：migu,bst">
+              <p class="mt-1 text-xs text-gray-500">包含这些标识的直播源将被完全过滤掉</p>
+            </div>
+            
+            <div class="flex items-center mb-2">
+              <input type="checkbox" id="enableSourceSorting" class="w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded transition-custom" checked>
+              <label for="enableSourceSorting" class="ml-2 text-gray-700">启用同一频道的多源排序</label>
+            </div>
+            
+            <div class="flex items-center">
+              <input type="checkbox" id="keepOnlyBestSource" class="w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded transition-custom">
+              <label for="keepOnlyBestSource" class="ml-2 text-gray-700">只保留每个频道的最佳来源（优先级最高的）</label>
+            </div>
+          </div>
+        </section>
+        
+        <!-- 组名排序和过滤分组 -->
+        <section class="bg-white rounded-xl shadow-card p-5 transition-custom hover:shadow-card-hover">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold flex items-center">
+              <i class="fa fa-sort text-primary mr-2"></i>组排序与过滤
+            </h2>
+          </div>
+          <div id="groupSortFilterContent" class="config-content open">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">组名排序顺序（每行一个组名，未指定的组名将按字母顺序排在后面）</label>
+              <textarea id="groupNameSort" class="w-full p-3 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-custom h-32 resize-none bg-gray-50" placeholder="输入组名，按顺序排列..."></textarea>
+            </div>
+            
+            <div class="mt-4">
+              <label class="block text-sm font-medium text-gray-700 mb-1">要过滤的分组（每行一个组名，未指定的分组将被保留）</label>
+              <textarea id="filterGroups" class="w-full p-3 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-custom h-24 resize-none bg-gray-50" placeholder="输入要过滤的组名..."></textarea>
+            </div>
+          </div>
+        </section>
+        
+        <!-- Gist上传配置 -->
+        <section class="bg-white rounded-xl shadow-card p-5 transition-custom hover:shadow-card-hover">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold flex items-center">
+              <i class="fa fa-github text-primary mr-2"></i>Gist上传配置
+            </h2>
+          </div>
+          <div id="gistUploadContent" class="config-content open">
+            <p class="text-gray-600 mb-4 text-sm text-balance">配置GitHub Gist信息，用于上传处理后的直播源文件</p>
+            <div class="space-y-4">
+              <div>
+                <label for="gistId" class="block text-sm font-medium text-gray-700 mb-1">
+                  Gist ID
+                </label>
+                <input type="text" id="gistId" class="w-full p-3 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-custom bg-gray-50" placeholder="输入Gist ID">
+                <p class="mt-1 text-xs text-gray-500">Gist ID是Gist URL中最后部分的字符串（例如：https://gist.github.com/user/abc12345 中的abc12345）</p>
+              </div>
+              <div>
+                <label for="githubToken" class="block text-sm font-medium text-gray-700 mb-1">
+                  GitHub访问令牌
+                </label>
+                <input type="password" id="githubToken" class="w-full p-3 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-custom bg-gray-50" placeholder="输入GitHub个人访问令牌">
+                <p class="mt-1 text-xs text-gray-500">需要包含gist权限的个人访问令牌，可在GitHub设置中创建</p>
+              </div>
+              <div>
+                <label for="gistFileName" class="block text-sm font-medium text-gray-700 mb-1">
+                  上传文件名
+                </label>
+                <input type="text" id="gistFileName" class="w-full p-3 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-custom bg-gray-50" value="channels.m3u" placeholder="输入要保存的文件名">
+                <p class="mt-1 text-xs text-gray-500">系统会根据选择的展示格式自动调整文件扩展名（.m3u 或 .txt）</p>
+              </div>
+            </div>
+            <div id="uploadStatus" class="mt-4 hidden"></div>
+            <div id="gistLinks" class="mt-4 hidden">
+              <div class="p-3 rounded-md bg-green-50 text-green-700 text-sm">
+                <h4 class="font-medium mb-2 flex items-center">
+                  <i class="fa fa-link mr-2"></i>上传成功 - Gist链接
+                </h4>
+                <div class="space-y-2">
+                  <div>
+                    <span class="font-medium">Gist页面:</span>
+                    <a id="gistPageLink" href="" target="_blank" class="text-primary hover:underline ml-1 break-all"></a>
+                  </div>
+                  <div>
+                    <span class="font-medium">文件原始链接:</span>
+                    <a id="gistRawLink" href="" target="_blank" class="text-primary hover:underline ml-1 break-all"></a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        
+        <!-- IP端口、Logo替换模块 -->
+        <section class="bg-white rounded-xl shadow-card p-5 transition-custom hover:shadow-card-hover">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold flex items-center">
+              <i class="fa fa-random text-primary mr-2"></i>IP端口、Logo替换
+            </h2>
+          </div>
+          <div class="config-content open">
+            <p class="text-gray-600 mb-4 text-sm text-balance">可批量替换所有直播源URL中的IP和端口，适用于内网/外网切换等场景。留空则不做替换。</p>
+            <div class="space-y-4">
+              <div>
+                <label for="replaceIpPort" class="block text-sm font-medium text-gray-700 mb-1">替换URL中的IP端口</label>
+                <input type="text" id="replaceIpPort" class="w-full p-3 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-custom bg-gray-50" value="" placeholder="如 172.10.0.1:35455">
+                <p class="mt-1 text-xs text-gray-500">如需替换URL中的IP:端口，填写此处（留空则不替换）</p>
+              </div>
+              
+              <div class="border-t border-gray-100 pt-4">
+                <h3 class="text-sm font-medium text-gray-700 mb-2 flex items-center">
+                  <i class="fa fa-image text-accent mr-1"></i>Logo更换设置
+                </h3>
+                <div class="space-y-3">
+                  <div>
+                    <label for="tvgLogoUrl" class="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
+                    <input type="text" id="tvgLogoUrl" class="w-full p-3 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-custom bg-gray-50" placeholder="如 https://example.com/logos/">
+                    <p class="mt-1 text-xs text-gray-500">设置Logo URL前缀，系统会自动为每个频道生成对应的Logo URL（格式：前缀/净化后频道名.png）</p>
+                  </div>
+                  
+                  <div class="flex items-center">
+                    <input type="checkbox" id="enableTvgLogoReplace" class="w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded transition-custom">
+                    <label for="enableTvgLogoReplace" class="ml-2 text-gray-700">启用Logo更换</label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        
+        <!-- 处理选项 -->
+        <section class="bg-white rounded-xl shadow-card p-5 transition-custom hover:shadow-card-hover md:col-span-2 xl:col-span-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 class="text-lg font-semibold mb-1 flex items-center">
+                <i class="fa fa-cogs text-primary mr-2"></i>处理选项
+              </h2>
+              <p class="text-gray-600 text-sm">配置完成后，点击处理按钮开始处理直播源</p>
+            </div>
+            <button id="processBtn" class="bg-primary text-white py-3 px-6 rounded-md hover:bg-primary/90 transition-custom transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-primary/50 active:btn-active" disabled>
+              <i class="fa fa-play mr-2"></i>开始处理
+            </button>
+          </div>
+        </section>
+        
+        <!-- 处理结果，独占一行 -->
+        <section class="bg-white rounded-xl shadow-card p-5 transition-custom hover:shadow-card-hover md:col-span-2 xl:col-span-3">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
+            <h2 class="text-lg font-semibold flex items-center">
+              <i class="fa fa-list-alt text-primary mr-2"></i>处理结果
+            </h2>
+            <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+              <span id="resultStats" class="text-sm text-gray-500 hidden">
+                共 <span id="totalChannels" class="font-medium">0</span> 个频道，
+                过滤后 <span id="remainingChannels" class="font-medium text-green-600">0</span> 个
+              </span>
+              <div id="exportButtons" class="hidden flex gap-2">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm text-gray-500">展示格式:</span>
+                  <select id="displayFormat" class="border border-gray-200 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-custom bg-gray-50">
+                    <option value="m3u">M3U</option>
+                    <option value="txt">TXT</option>
+                  </select>
+                </div>
+                <button id="exportM3U" class="bg-green-600 text-white py-1.5 px-4 rounded hover:bg-green-700 transition-custom text-sm flex items-center shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-green-500/50 active:btn-active">
+                  <i class="fa fa-download mr-1"></i>导出M3U
+                </button>
+                <button id="exportTXT" class="bg-blue-600 text-white py-1.5 px-4 rounded hover:bg-blue-700 transition-custom text-sm flex items-center shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500/50 active:btn-active">
+                  <i class="fa fa-download mr-1"></i>导出TXT
+                </button>
+                <div class="flex items-center gap-2">
+                  <span id="formatIndicator" class="text-xs text-gray-500 hidden">
+                    格式: <span id="detectedFormat" class="font-medium"></span>
+                  </span>
+                <button id="uploadToGist" class="bg-purple-600 text-white py-1.5 px-4 rounded hover:bg-purple-700 transition-custom text-sm flex items-center shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-purple-500/50 active:btn-active disabled:opacity-50 disabled:cursor-not-allowed">
+                  <i class="fa fa-upload mr-1"></i>上传到Gist
+                </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div id="noResult" class="text-center py-16 text-gray-500">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+              <i class="fa fa-file-o text-2xl text-gray-400"></i>
+            </div>
+            <p class="text-gray-600">处理结果将显示在这里</p>
+            <p class="text-sm mt-2 text-gray-500">请上传文件并点击"开始处理"按钮</p>
+          </div>
+          
+          <div id="resultContainer" class="hidden">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+              <div class="relative w-full sm:w-auto">
+                <input type="text" id="searchChannels" placeholder="搜索频道..." class="pl-9 pr-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-custom w-full sm:w-64 bg-gray-50 min-w-0">
+                <i class="fa fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+              </div>
+              <div class="flex items-center space-x-2 w-full sm:w-auto">
+                <span class="text-sm text-gray-500">显示分组:</span>
+                <select id="groupFilter" class="border border-gray-200 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-custom bg-gray-50 min-w-0">
+                  <option value="all">所有分组</option>
+                </select>
+              </div>
+            </div>
+            
+            <div id="channelsResult" class="max-h-[600px] overflow-y-auto scrollbar-thin p-1 space-y-4"></div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <!-- 帮助模态框 -->
+ <div id="helpModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center opacity-0 pointer-events-none transition-all duration-300">
+        <div class="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto m-4 transform scale-95 transition-all duration-300">
+            <div class="p-6 border-b border-gray-100">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-xl font-bold">使用帮助</h2>
+                    <button id="closeHelp" class="text-gray-500 hover:text-gray-700 p-1.5 rounded-full hover:bg-gray-100 transition-custom focus:outline-none focus:ring-2 focus:ring-gray-200 active:btn-active">
+                        <i class="fa fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="p-6 space-y-5">
+                <div>
+                    <h3 class="font-semibold text-lg mb-2 flex items-center">
+                        <i class="fa fa-upload text-primary mr-2"></i>1. 上传文件
+                    </h3>
+                    <p class="text-gray-600">                    <p class="text-gray-600">支持拖放或选择m3u、txt格式的直播源文件或直接输入直播源url链接进行处理（支持多文件、多url同时解析;支持文件、url复合解析）。系统将自动解析文件中的频道信息和原始分组，多文件时会将所有频道路径合并处理 。</p>
+</p>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-lg mb-2 flex items-center">
+                        <i class="fa fa-sliders text-primary mr-2"></i>2. 配置过滤规则
+                    </h3>
+                    <ul class="list-disc pl-5 space-y-2 text-gray-600">
+                        <li><strong>过滤去重</strong>：包含关键词的频道将被过滤掉、支持直播源去重</li>
+                        <li><strong>频道名净化</strong>：可配置的净化规则，包括移除括号、数字前缀、修饰词、将小写cctv转为大写等功能</li>
+                        <li><strong>频道名映射与UA设置</strong>：将原始频道名映射为新的频道名，未映射的频道名将保持净化后的状态。同时支持设置M3U文件的User-Agent属性，可为所有频道统一设置http-user-agent属性</li>
+                        <li><strong>组名映射</strong>：将原始组名映射到新的组名，未映射的组名将保持原样</li>
+                        <li><strong>自定义分组规则</strong>：支持规则的添加、修改与删除，可依据关键词（关键词不可重复）将频道分配至指定分组。分组名需从组名映射中的新分组名里选择；若要将频道分配到源文件中的其他源分组，需先通过【组名映射功能】完成映射，之后即可选择该分组（示例：央视 [源分组名] = 央视 [新分组名]）。</li>
+                        <li><strong>源排序与过滤</strong>：从URL中提取源标识（如bst、migu等），并按优先级对同一频道的不同源进行排序；可设置要屏蔽的源标识</li>
+                        <li><strong>组排序与过滤</strong>：设置分组显示顺序和需要过滤的分组，未指定的分组将被保留</li>
+                        <li><strong>Gist上传配置</strong>：配置GitHub Gist信息，用于上传处理后的直播源文件到GitHub Gist</li>
+                        <li><strong>IP端口、Logo替换</strong>：可批量替换所有直播源URL中的IP和端口，适用于内网/外网切换等场景。同时支持Logo的批量更换，可为所有频道设置统一的Logo URL前缀，系统会自动为每个频道生成对应的Logo URL（格式：前缀/净化后频道名.png）。留空则不做替换。</li>
+                        <li><strong>配置管理</strong>：支持多配置的保存、加载、删除，配置会自动保存到本地存储，便于快速切换不同的处理方案。支持配置的导入导出功能。</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-lg mb-2 flex items-center">
+                        <i class="fa fa-cog text-primary mr-2"></i>3. 处理与导出
+                    </h3>
+                    <p class="text-gray-600">点击"开始处理"按钮应用配置并处理直播源，处理完成后可以导出为m3u或txt格式的文件，或直接上传到GitHub Gist。</p>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-lg mb-2 flex items-center">
+                        <i class="fa fa-github text-primary mr-2"></i>4. Gist上传说明
+                    </h3>
+                    <p class="text-gray-600 mb-2">要使用Gist上传功能，您需要：</p>
+                    <ol class="list-decimal pl-5 space-y-2 text-gray-600">
+                        <li>拥有一个GitHub账号</li>
+                        <li>创建一个包含gist权限的个人访问令牌：
+                            <ul class="list-disc pl-5 mt-1">
+                                <li>登录GitHub，进入Settings → Developer settings → Personal access tokens</li>
+                                <li>点击"Generate new token"，勾选"gist"权限</li>
+                                <li>生成令牌并保存（只显示一次）</li>
+                            </ul>
+                        </li>
+                        <li>创建一个Gist（或使用现有Gist），获取其ID</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 配置管理模态框 -->
+    <div id="configManagerModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center opacity-0 pointer-events-none transition-all duration-300 p-4">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-6xl max-h-[95vh] overflow-y-auto transform scale-95 transition-all duration-300 flex flex-col">
+            <!-- 头部 -->
+            <div class="p-4 sm:p-6 border-b border-gray-100 flex-shrink-0">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-lg sm:text-xl font-bold flex items-center">
+                        <i class="fa fa-cogs text-primary mr-2"></i>配置管理
+                    </h2>
+                    <button id="closeConfigManager" class="text-gray-500 hover:text-gray-700 p-1.5 rounded-full hover:bg-gray-100 transition-custom focus:outline-none focus:ring-2 focus:ring-gray-200 active:btn-active">
+                        <i class="fa fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 内容区域 -->
+            <div class="p-4 sm:p-6 flex-1 overflow-y-auto">
+                <!-- 当前配置保存区域 -->
+                <div class="mb-6 p-3 sm:p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <h3 class="font-semibold text-base sm:text-lg mb-3 flex items-center">
+                        <i class="fa fa-save text-blue-600 mr-2"></i>保存当前配置
+                    </h3>
+                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                        <input type="text" id="saveConfigName" placeholder="输入配置名称" class="flex-1 p-2 sm:p-3 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-custom text-sm sm:text-base">
+                        <button id="saveCurrentConfig" class="bg-primary text-white px-4 sm:px-6 py-2 sm:py-3 rounded-md hover:bg-primary/90 transition-custom focus:outline-none focus:ring-2 focus:ring-primary/50 active:btn-active text-sm sm:text-base whitespace-nowrap">
+                            <i class="fa fa-save mr-1 sm:mr-2"></i>保存配置
+                        </button>
+                    </div>
+                    <p class="text-xs sm:text-sm text-gray-600 mt-2">点击保存配置时将当前页面参数保存到本地存储，支持多配置管理</p>
+                </div>
+
+                <!-- 配置列表 -->
+                <div class="mb-6">
+                    <h3 class="font-semibold text-base sm:text-lg mb-3 flex items-center">
+                        <i class="fa fa-list text-primary mr-2"></i>已保存的配置
+                    </h3>
+                    <div id="configList" class="space-y-2 sm:space-y-3 max-h-64 sm:max-h-96 overflow-y-auto">
+                        <!-- 配置列表将在这里动态生成 -->
+                    </div>
+                    <div id="noConfigs" class="text-center py-6 sm:py-8 text-gray-500">
+                        <div class="inline-flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gray-100 mb-3">
+                            <i class="fa fa-folder-open text-lg sm:text-xl text-gray-400"></i>
+                        </div>
+                        <p class="text-sm sm:text-base">暂无保存的配置</p>
+                        <p class="text-xs sm:text-sm mt-1">保存的配置将显示在这里</p>
+                    </div>
+                </div>
+
+                <!-- 批量操作 -->
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-4 border-t border-gray-200">
+                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+                        <button id="exportAllConfigs" class="bg-green-600 text-white px-3 sm:px-4 py-2 rounded-md hover:bg-green-700 transition-custom focus:outline-none focus:ring-2 focus:ring-green-500/50 active:btn-active text-sm sm:text-base">
+                            <i class="fa fa-download mr-1"></i>导出所有配置
+                        </button>
+                        <button id="importConfigs" class="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-md hover:bg-blue-700 transition-custom focus:outline-none focus:ring-2 focus:ring-blue-500/50 active:btn-active text-sm sm:text-base">
+                            <i class="fa fa-upload mr-1"></i>导入配置
+                        </button>
+                        <input type="file" id="importConfigsFile" accept="application/json" class="hidden">
+                    </div>
+                    <button id="clearAllConfigs" class="bg-red-600 text-white px-3 sm:px-4 py-2 rounded-md hover:bg-red-700 transition-custom focus:outline-none focus:ring-2 focus:ring-red-500/50 active:btn-active text-sm sm:text-base">
+                        <i class="fa fa-trash mr-1"></i>清空所有配置
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 页脚 -->
+    <footer class="bg-white border-t border-gray-100 py-5">
+        <div class="container mx-auto px-4 text-center text-gray-500 text-sm">
+            <p>直播源文件处理 &copy; 2025 | 支持可配置的净化规则和分组管理</p>
+        </div>
+    </footer>
+
+    <script>
+        // 通用工具函数
+        const Utils = {
+            // 创建按钮元素
+            createButton(text, type = 'primary', size = 'md', icon = '', extraClasses = '') {
+                const btnClasses = {primary: 'btn-primary', secondary: 'btn-secondary', danger: 'btn-danger', success: 'btn-success', info: 'btn-info', warning: 'btn-warning'};
+                const sizeClasses = {sm: 'text-xs px-2 py-1', md: 'text-sm px-4 py-2', lg: 'text-base px-6 py-3'};
+                return `<button class="${btnClasses[type]} ${sizeClasses[size]} ${extraClasses}">${icon ? `<i class="fa ${icon} mr-1"></i>` : ''}${text}</button>`;
+            },
+            
+            // 创建输入框元素
+            createInput(type = 'text', placeholder = '', value = '', extraClasses = '') {
+                return `<input type="${type}" placeholder="${placeholder}" value="${value}" class="input-base ${extraClasses}">`;
+            },
+            
+            // 创建卡片元素
+            createCard(content, extraClasses = '') {
+                return `<div class="card-base ${extraClasses}">${content}</div>`;
+            },
+            
+            // 显示消息
+            showMessage(message, type = 'success', duration = 2000) {
+                showFullScreenMessage(message, type, duration);
+            },
+            
+            // 下载文件
+            downloadFile(content, filename, mimeType) {
+                const blob = new Blob([content], { type: mimeType });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, 1000);
+            },
+            
+            // 绑定事件监听器
+            bindEvent(element, event, handler) {
+                if (element) element.addEventListener(event, handler);
+            },
+            
+            // 创建模态框
+            createModal(id, content, extraClasses = '') {
+                return `<div id="${id}" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center opacity-0 pointer-events-none transition-all duration-300 ${extraClasses}">${content}</div>`;
+            }
+        };
+
+        // 初始化配置数据
+        const config = {
+            filterKeywords: [],
+            duplicateRemoval: {
+                enabled: true
+            },
+            groupNameMapping: {},
+            channelNameMapping: {},
+            m3uUserAgent: '',
+            customGroupRules: {},
+            groupNameSort: [],
+            filterGroups: [],
+            sourceSorting: {
+                identifiers: [],
+                blockedIdentifiers: [], // 要屏蔽的源标识
+                enabled: true,
+                keepOnlyBest: false
+            },
+            purificationRules: {
+                removeBrackets: true,
+                removeNumberPrefix: true,
+                removeModifiers: true,
+                standardizeCCTV: true,
+                uppercaseCCTV: true,
+                modifierWords: []
+            },
+            gistConfig: {
+                id: '',
+                token: '',
+                fileName: 'tv.m3u',
+                lastUploaded: {
+                    gistUrl: '',
+                    rawUrl: ''
+                }
+            },
+            tvgLogoConfig: {
+                enabled: false,
+                url: ''
+            }
+        };
+
+        // 配置管理相关变量
+        const CONFIG_STORAGE_KEY = 'liveSourceProcessor_configs';
+        const CURRENT_CONFIG_KEY = 'liveSourceProcessor_current_config';
+        let savedConfigs = {};
+        let currentConfigName = '';
+
+        // 配置管理功能
+        const ConfigManager = {
+            // 从localStorage加载所有配置
+            loadAllConfigs() {
+                try {
+                    const saved = localStorage.getItem(CONFIG_STORAGE_KEY);
+                    savedConfigs = saved ? JSON.parse(saved) : {};
+                    
+                    // 加载当前配置
+                    const current = localStorage.getItem(CURRENT_CONFIG_KEY);
+                    if (current) {
+                        const currentConfig = JSON.parse(current);
+                        Object.assign(config, currentConfig.config);
+                        currentConfigName = currentConfig.name;
+                    }
+                } catch (error) {
+                    console.error('加载配置失败:', error);
+                    savedConfigs = {};
+                }
+            },
+
+            // 保存配置到localStorage
+            saveConfig(name, configData) {
+                try {
+                    savedConfigs[name] = {
+                        name: name,
+                        config: JSON.parse(JSON.stringify(configData)), // 深拷贝
+                        timestamp: Date.now(),
+                        lastModified: Date.now()
+                    };
+                    localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(savedConfigs));
+                    
+                    // 同时保存为当前配置
+                    localStorage.setItem(CURRENT_CONFIG_KEY, JSON.stringify({
+                        name: name,
+                        config: configData
+                    }));
+                    currentConfigName = name;
+                    
+                    return true;
+                } catch (error) {
+                    console.error('保存配置失败:', error);
+                    return false;
+                }
+            },
+
+            // 加载指定配置
+            loadConfig(name) {
+                if (savedConfigs[name]) {
+                    Object.assign(config, savedConfigs[name].config);
+                    currentConfigName = name;
+                    
+                    // 更新当前配置
+                    localStorage.setItem(CURRENT_CONFIG_KEY, JSON.stringify({
+                        name: name,
+                        config: savedConfigs[name].config
+                    }));
+                    
+                    return true;
+                }
+                return false;
+            },
+
+            // 删除配置
+            deleteConfig(name) {
+                if (savedConfigs[name]) {
+                    delete savedConfigs[name];
+                    localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(savedConfigs));
+                    
+                    // 如果删除的是当前配置，清空当前配置
+                    if (currentConfigName === name) {
+                        localStorage.removeItem(CURRENT_CONFIG_KEY);
+                        currentConfigName = '';
+                    }
+                    
+                    return true;
+                }
+                return false;
+            },
+
+            // 清空所有配置
+            clearAllConfigs() {
+                savedConfigs = {};
+                localStorage.removeItem(CONFIG_STORAGE_KEY);
+                localStorage.removeItem(CURRENT_CONFIG_KEY);
+                currentConfigName = '';
+            },
+
+            // 导出所有配置
+            exportAllConfigs() {
+                return JSON.stringify(savedConfigs, null, 2);
+            },
+
+            // 导入配置
+            importConfigs(configsData) {
+                try {
+                    const imported = JSON.parse(configsData);
+                    if (typeof imported === 'object' && imported !== null) {
+                        Object.assign(savedConfigs, imported);
+                        localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(savedConfigs));
+                        return true;
+                    }
+                    return false;
+                } catch (error) {
+                    console.error('导入配置失败:', error);
+                    return false;
+                }
+            },
+
+            // 获取配置列表
+            getConfigList() {
+                return Object.values(savedConfigs).sort((a, b) => b.lastModified - a.lastModified);
+            },
+
+            // 更新配置的最后修改时间
+            updateConfigTimestamp(name) {
+                if (savedConfigs[name]) {
+                    savedConfigs[name].lastModified = Date.now();
+                    localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(savedConfigs));
+                }
+            }
+        };
+
+        // 全局变量
+        let originalChannels = [], processedChannels = [], currentFile = null, allNewGroupNames = [], isFileDialogOpen = false;
+        let elements = {};
+        // 存储所有已上传的文件
+        let uploadedFiles = [];
+        // 存储所有文件的频道数据
+        let allFileChannels = [];
+
+        // 初始化配置UI
+        function initConfigUI() {
+            // 只有在有当前配置时才加载配置到UI
+            if (currentConfigName) {
+                elements.filterKeywords.value = config.filterKeywords.join('\n');
+                elements.enableDuplicateRemoval.checked = config.duplicateRemoval.enabled;
+                elements.groupNameSort.value = config.groupNameSort.join('\n');
+                elements.filterGroups.value = config.filterGroups.join('\n');
+                elements.sourceIdentifiers.value = config.sourceSorting.identifiers.join(',');
+                // 初始化屏蔽的源标识
+                elements.blockedSourceIdentifiers.value = config.sourceSorting.blockedIdentifiers.join(',');
+                elements.enableSourceSorting.checked = config.sourceSorting.enabled;
+                elements.keepOnlyBestSource.checked = config.sourceSorting.keepOnlyBest;
+                
+                // Gist配置
+                elements.gistId.value = config.gistConfig.id;
+                elements.githubToken.value = config.gistConfig.token;
+                elements.gistFileName.value = config.gistConfig.fileName;
+                
+                // Logo配置
+                elements.tvgLogoUrl.value = config.tvgLogoConfig.url;
+                elements.enableTvgLogoReplace.checked = config.tvgLogoConfig.enabled;
+                
+                // M3U User-Agent配置
+                elements.m3uUserAgent.value = config.m3uUserAgent || '';
+                
+                // 如果有上次上传的链接，只显示悬浮图标
+                if (config.gistConfig.lastUploaded.gistUrl) {
+                    showFloatingIconOnly(
+                        config.gistConfig.lastUploaded.gistUrl,
+                        config.gistConfig.lastUploaded.rawUrl
+                    );
+                }
+                
+                RenderUtils.renderGroupMappings(false);
+                RenderUtils.renderChannelMappings();
+                renderCustomGroupRules();
+                
+                elements.ruleRemoveBrackets.checked = config.purificationRules.removeBrackets;
+                elements.ruleRemoveNumberPrefix.checked = config.purificationRules.removeNumberPrefix;
+                elements.ruleRemoveModifiers.checked = config.purificationRules.removeModifiers;
+                elements.ruleStandardizeCCTV.checked = config.purificationRules.standardizeCCTV;
+                elements.ruleUppercaseCCTV.checked = config.purificationRules.uppercaseCCTV;
+                elements.modifierWords.value = config.purificationRules.modifierWords.join(',');
+            } else {
+                // 没有当前配置时，清空所有UI元素
+                elements.filterKeywords.value = '';
+                elements.enableDuplicateRemoval.checked = true;
+                elements.groupNameSort.value = '';
+                elements.filterGroups.value = '';
+                elements.sourceIdentifiers.value = '';
+                elements.blockedSourceIdentifiers.value = '';
+                elements.enableSourceSorting.checked = false;
+                elements.keepOnlyBestSource.checked = false;
+                
+                // Gist配置
+                elements.gistId.value = '';
+                elements.githubToken.value = '';
+                elements.gistFileName.value = 'channels.m3u';
+                
+                // Logo配置
+                elements.tvgLogoUrl.value = '';
+                elements.enableTvgLogoReplace.checked = false;
+                
+                // M3U User-Agent配置
+                elements.m3uUserAgent.value = '';
+                
+                // 清空映射
+                config.groupNameMapping = {};
+                config.channelNameMapping = {};
+                config.customGroupRules = {};
+                RenderUtils.renderGroupMappings(false);
+                RenderUtils.renderChannelMappings();
+                renderCustomGroupRules();
+                
+                // 清空净化规则
+                elements.ruleRemoveBrackets.checked = false;
+                elements.ruleRemoveNumberPrefix.checked = false;
+                elements.ruleRemoveModifiers.checked = false;
+                elements.ruleStandardizeCCTV.checked = false;
+                elements.ruleUppercaseCCTV.checked = false;
+                elements.modifierWords.value = '';
+            }
+        }
+
+        // 渲染配置管理UI
+        function renderConfigManagerUI() {
+            const configList = ConfigManager.getConfigList();
+            const configListEl = document.getElementById('configList');
+            const noConfigsEl = document.getElementById('noConfigs');
+            
+            if (configList.length === 0) {
+                configListEl.innerHTML = '';
+                noConfigsEl.style.display = 'block';
+                return;
+            }
+            
+            noConfigsEl.style.display = 'none';
+            configListEl.innerHTML = configList.map(configItem => {
+                const isCurrent = currentConfigName === configItem.name;
+                const date = new Date(configItem.lastModified);
+                const dateStr = date.toLocaleString('zh-CN');
+                
+                return `
+                    <div class="bg-gray-50 rounded-lg p-3 sm:p-4 border border-gray-200 hover:border-primary/30 transition-custom">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-2">
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <h4 class="font-semibold text-gray-800 truncate text-sm sm:text-base">${configItem.name}</h4>
+                                </div>
+                                <p class="text-xs sm:text-sm text-gray-600">最后修改: ${dateStr}</p>
+                                <div class="flex flex-wrap items-center gap-1 sm:gap-2 mt-2 text-xs text-gray-500">
+                                    <span class="bg-gray-100 px-1.5 py-0.5 rounded text-xs">过滤去重: ${configItem.config.filterKeywords?.length || 0} 个</span>
+                                    <span class="bg-gray-100 px-1.5 py-0.5 rounded text-xs">组名映射: ${Object.keys(configItem.config.groupNameMapping || {}).length} 个</span>
+                                    <span class="bg-gray-100 px-1.5 py-0.5 rounded text-xs">频道映射: ${Object.keys(configItem.config.channelNameMapping || {}).length} 个</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 sm:ml-4 flex-shrink-0">
+                                <button class="load-config-btn bg-primary text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-md hover:bg-primary/90 transition-custom focus:outline-none focus:ring-2 focus:ring-primary/50 active:btn-active text-xs sm:text-sm" data-config-name="${configItem.name}">
+                                    <i class="fa fa-download mr-1"></i>加载
+                                </button>
+                                <button class="delete-config-btn bg-red-600 text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-md hover:bg-red-700 transition-custom focus:outline-none focus:ring-2 focus:ring-red-500/50 active:btn-active text-xs sm:text-sm" data-config-name="${configItem.name}">
+                                    <i class="fa fa-trash mr-1"></i>删除
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            // 绑定事件
+            configListEl.querySelectorAll('.load-config-btn').forEach(btn => {
+                btn.onclick = function() {
+                    const configName = this.getAttribute('data-config-name');
+                    ConfigActions.loadConfig(configName);
+                };
+            });
+            
+            configListEl.querySelectorAll('.delete-config-btn').forEach(btn => {
+                btn.onclick = function() {
+                    const configName = this.getAttribute('data-config-name');
+                    ConfigActions.deleteConfig(configName);
+                };
+            });
+        }
+
+        // 模态框管理
+        const ModalUtils = {
+            showModal(modalId, contentCallback = null) {
+                const modal = document.getElementById(modalId);
+                const modalContent = modal.querySelector('div');
+                
+                if (contentCallback) contentCallback();
+                
+                modal.classList.remove('pointer-events-none');
+                modal.style.opacity = '1';
+                modalContent.style.transform = 'scale(1)';
+            },
+            
+            hideModal(modalId) {
+                const modal = document.getElementById(modalId);
+                const modalContent = modal.querySelector('div');
+                
+                modal.style.opacity = '0';
+                modalContent.style.transform = 'scale(0.95)';
+                setTimeout(() => modal.classList.add('pointer-events-none'), 300);
+            },
+            
+            showConfigManagerModal() {
+                this.showModal('configManagerModal', () => {
+                    renderConfigManagerUI();
+                    this.bindConfigManagerEvents();
+                });
+            },
+            
+            bindConfigManagerEvents() {
+                const events = {
+                    closeConfigManager: () => this.hideModal('configManagerModal'),
+                    saveCurrentConfig: saveCurrentConfig,
+                    exportAllConfigs: ConfigActions.exportAllConfigs,
+                    importConfigs: ConfigActions.importConfigs,
+                    clearAllConfigs: ConfigActions.clearAllConfigs
+                };
+                
+                Object.entries(events).forEach(([elementId, handler]) => {
+                    if (elements[elementId]) {
+                        elements[elementId].onclick = handler;
+                    }
+                });
+            }
+        };
+
+        // 保存当前配置
+        function saveCurrentConfig() {
+            const configName = document.getElementById('saveConfigName').value.trim();
+            if (!configName) {
+                showFullScreenMessage('请输入配置名称', 'error', 2000);
+                return;
+            }
+            
+            // 更新配置数据（从当前页面参数获取）
+            updateConfigFromUI();
+            
+            if (ConfigManager.saveConfig(configName, config)) {
+                Utils.showMessage(`配置 "${configName}" 保存成功`, 'success', 2000);
+                document.getElementById('saveConfigName').value = '';
+                renderConfigManagerUI();
+            } else {
+                Utils.showMessage('配置保存失败', 'error', 2000);
+            }
+        }
+
+        // 配置管理操作
+        const ConfigActions = {
+            loadConfig(configName) {
+                if (ConfigManager.loadConfig(configName)) {
+                    initConfigUI();
+                    Utils.showMessage(`配置 "${configName}" 加载成功`, 'success', 2000);
+                    ModalUtils.hideModal('configManagerModal');
+                } else {
+                    Utils.showMessage('配置加载失败', 'error', 2000);
+                }
+            },
+            
+            deleteConfig(configName) {
+                showConfirmDialog(`确定要删除配置 "${configName}" 吗？`, () => {
+                    if (ConfigManager.deleteConfig(configName)) {
+                        Utils.showMessage(`配置 "${configName}" 删除成功`, 'success', 2000);
+                        renderConfigManagerUI();
+                    } else {
+                        Utils.showMessage('配置删除失败', 'error', 2000);
+                    }
+                });
+            },
+            
+            exportAllConfigs() {
+                const configsData = ConfigManager.exportAllConfigs();
+                const blob = new Blob([configsData], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = '直播源处理配置.json';
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, 1000);
+            },
+            
+            importConfigs() {
+                document.getElementById('importConfigsFile').click();
+            },
+            
+            handleConfigsImport(file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        if (ConfigManager.importConfigs(e.target.result)) {
+                            Utils.showMessage('配置导入成功', 'success', 2000);
+                            renderConfigManagerUI();
+                        } else {
+                            Utils.showMessage('配置导入失败：文件格式不正确', 'error', 2000);
+                        }
+                    } catch (error) {
+                        Utils.showMessage('配置导入失败：' + error.message, 'error', 2000);
+                    }
+                };
+                reader.readAsText(file);
+            },
+            
+            clearAllConfigs() {
+                showConfirmDialog('确定要清空所有配置吗？此操作不可恢复！', () => {
+                    ConfigManager.clearAllConfigs();
+                    Utils.showMessage('所有配置已清空', 'success', 2000);
+                    renderConfigManagerUI();
+                });
+            }
+        };
+
+        // 渲染映射通用函数
+        const RenderUtils = {
+            createMappingItem(key, value, type) {
+                const mappingEl = document.createElement('div');
+                mappingEl.className = 'w-full flex items-center gap-1 mb-2';
+                mappingEl.innerHTML = `
+                    <div class="flex-1 min-w-0 flex items-center gap-1">
+                        <input type="text" value="${key}" class="flex-1 min-w-0 p-2 h-10 border border-gray-200 bg-white rounded-l-md text-sm ${type}-key focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-custom" style="min-width: 0;">
+                        <span class="flex-shrink-0 px-2 text-gray-500">=</span>
+                        <input type="text" value="${value}" class="flex-1 min-w-0 p-2 h-10 border border-gray-200 bg-white rounded-r-md text-sm ${type}-value focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-custom" style="min-width: 0;">
+                    </div>
+                    <button type="button" class="delete-${type}-mapping flex-shrink-0 w-10 h-10 flex items-center justify-center bg-red-50 text-red-500 rounded-r-md hover:bg-red-100 transition-custom focus:outline-none focus:ring-2 focus:ring-red-200 active:btn-active">
+                        <i class="fa fa-times"></i>
+                    </button>
+                `;
+                return mappingEl;
+            },
+            
+            renderGroupMappings(showTip = false) {
+                elements.groupMappingContainer.innerHTML = '';
+                allNewGroupNames = [];
+                
+                Object.entries(config.groupNameMapping).forEach(([key, value]) => {
+                    if (!allNewGroupNames.includes(value)) allNewGroupNames.push(value);
+                    const mappingEl = this.createMappingItem(key, value, 'group');
+                    mappingEl.querySelector('.delete-group-mapping').onclick = () => {
+                        delete config.groupNameMapping[key];
+                        checkGroupMappingEmpty(true);
+                        this.renderGroupMappings(true);
+                    };
+                    elements.groupMappingContainer.appendChild(mappingEl);
+                });
+                
+                checkGroupMappingEmpty(showTip);
+                updateGroupRuleNameSelect();
+                updateAllGroupRuleSelects();
+            },
+            
+            renderChannelMappings() {
+                elements.channelMappingContainer.innerHTML = '';
+                Object.entries(config.channelNameMapping).forEach(([key, value]) => {
+                    const mappingEl = this.createMappingItem(key, value, 'channel');
+                    mappingEl.querySelector('.delete-channel-mapping').onclick = () => {
+                        delete config.channelNameMapping[key];
+                        this.renderChannelMappings();
+                    };
+                    elements.channelMappingContainer.appendChild(mappingEl);
+                });
+                
+                document.querySelectorAll('.channel-key, .channel-value').forEach(input => {
+                    input.addEventListener('change', function() {
+                        const newMappings = {};
+                        document.querySelectorAll('#channelMappingContainer > div').forEach(el => {
+                            const key = el.querySelector('.channel-key').value.trim();
+                            const value = el.querySelector('.channel-value').value.trim();
+                            if (key) newMappings[key] = value;
+                        });
+                        config.channelNameMapping = newMappings;
+                    });
+                });
+            }
+        };
+
+        // 检查组名映射是否为空，如果为空则清空自定义分组规则
+        function checkGroupMappingEmpty(showTip = false) {
+            if (Object.keys(config.groupNameMapping).length === 0) {
+                // 组名映射为空，清空自定义分组规则
+                config.customGroupRules = {};
+                renderCustomGroupRules();
+                // 只有用户操作时才提示
+                if (showTip) {
+                showFullScreenMessage('组名映射已清空，自定义分组规则已同步清除', 'success', 2000);
+                }
+            }
+        }
+
+        // 更新分组名下拉选项
+        function updateGroupRuleNameSelect() {
+            const select = elements.newGroupRuleName;
+            if (!select) return;
+            
+            const currentValue = select.value;
+            select.innerHTML = '<option value="">请选择分组名</option>';
+            
+            allNewGroupNames.forEach(groupName => {
+                const option = document.createElement('option');
+                option.value = groupName;
+                option.textContent = groupName;
+                select.appendChild(option);
+            });
+            
+            if (currentValue && allNewGroupNames.includes(currentValue)) {
+                select.value = currentValue;
+            }
+        }
+
+        // 更新所有现有分组规则的下拉选项
+        function updateAllGroupRuleSelects() {
+            document.querySelectorAll('.group-rule-name').forEach(select => {
+                const currentValue = select.value;
+                select.innerHTML = '';
+                
+                allNewGroupNames.forEach(groupName => {
+                    const option = document.createElement('option');
+                    option.value = groupName;
+                    option.textContent = groupName;
+                    select.appendChild(option);
+                });
+                
+                if (currentValue && allNewGroupNames.includes(currentValue)) {
+                    select.value = currentValue;
+                } else if (allNewGroupNames.length > 0) {
+                    select.value = allNewGroupNames[0];
+                }
+                
+                select.onchange = function() {
+                    const oldGroup = select.dataset.originalValue || currentValue;
+                    const newGroup = this.value;
+                    
+                    if (newGroup && newGroup !== oldGroup && config.customGroupRules[oldGroup]) {
+                        const keywords = config.customGroupRules[oldGroup];
+                        delete config.customGroupRules[oldGroup];
+                        config.customGroupRules[newGroup] = keywords;
+                        select.dataset.originalValue = newGroup;
+                        renderCustomGroupRules();
+                        autoSaveConfig();
+                    }
+                };
+                
+                select.dataset.originalValue = currentValue;
+            });
+        }
+
+
+
+        // 渲染自定义分组规则
+        function renderCustomGroupRules() {
+            elements.customGroupRulesContainer.innerHTML = '';
+            
+            Object.entries(config.customGroupRules).forEach(([group, keywords]) => {
+                const ruleEl = document.createElement('div');
+                ruleEl.className = 'flex flex-col';
+                
+                const headerEl = document.createElement('div');
+                headerEl.className = 'flex items-center mb-1';
+                
+                let groupSelectHtml = '<select class="flex-1 min-w-0 p-2 h-10 border border-gray-200 rounded-l-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm group-rule-name transition-custom" data-original-value="' + group + '">';
+                allNewGroupNames.forEach(g => {
+                    groupSelectHtml += `<option value="${g}" ${g === group ? 'selected' : ''}>${g}</option>`;
+                });
+                groupSelectHtml += '</select>';
+                
+                headerEl.innerHTML = `
+                    <div class="flex-1 min-w-0 flex items-center gap-1">
+                        ${groupSelectHtml}
+                        <span class="px-2 text-gray-500">=</span>
+                    </div>
+                    <button class="edit-group-rule flex-shrink-0 w-10 h-10 flex items-center justify-center bg-blue-50 text-blue-500 hover:bg-blue-100 transition-custom focus:outline-none focus:ring-2 focus:ring-blue-200 active:btn-active">
+                        <i class="fa fa-pencil"></i>
+                    </button>
+                    <button class="delete-group-rule flex-shrink-0 w-10 h-10 flex items-center justify-center bg-red-50 text-red-500 rounded-r-md hover:bg-red-100 transition-custom focus:outline-none focus:ring-2 focus:ring-red-200 active:btn-active">
+                        <i class="fa fa-times"></i>
+                    </button>
+                `;
+                
+                const keywordsEl = document.createElement('div');
+                keywordsEl.className = 'flex flex-wrap gap-2 ml-1';
+                
+                keywords.forEach(keyword => {
+                    const keywordTag = document.createElement('span');
+                    keywordTag.className = 'bg-gray-100 text-gray-800 px-2 py-1 rounded-md text-sm flex items-center hover:bg-gray-200 transition-custom';
+                    keywordTag.innerHTML = `${keyword} <button class="ml-1 text-gray-500 hover:text-red-500 delete-keyword transition-custom focus:outline-none focus:ring-1 focus:ring-red-200"><i class="fa fa-times-circle"></i></button>`;
+                    keywordsEl.appendChild(keywordTag);
+                    
+                    keywordTag.querySelector('.delete-keyword').addEventListener('click', e => {
+                        e.stopPropagation();
+                        config.customGroupRules[group] = config.customGroupRules[group].filter(k => k !== keyword);
+                        if (config.customGroupRules[group].length === 0) delete config.customGroupRules[group];
+                        renderCustomGroupRules();
+                    });
+                });
+                
+                headerEl.querySelector('.edit-group-rule').addEventListener('click', () => createEditModal(group, keywords));
+                
+                ruleEl.appendChild(headerEl);
+                ruleEl.appendChild(keywordsEl);
+                elements.customGroupRulesContainer.appendChild(ruleEl);
+            });
+            
+            // 删除规则事件
+            document.querySelectorAll('.delete-group-rule').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const group = this.parentElement.querySelector('.group-rule-name').value;
+                    delete config.customGroupRules[group];
+                    renderCustomGroupRules();
+                });
+            });
+            
+            // 为每个分组选择器添加change事件监听器
+            document.querySelectorAll('.group-rule-name').forEach(select => {
+                select.addEventListener('change', function() {
+                    const oldGroup = this.dataset.originalValue;
+                    const newGroup = this.value;
+                    
+                    if (newGroup && newGroup !== oldGroup && config.customGroupRules[oldGroup]) {
+                        // 保存旧分组的关键词
+                        const keywords = config.customGroupRules[oldGroup];
+                        // 删除旧分组
+                        delete config.customGroupRules[oldGroup];
+                        // 添加到新分组
+                        if (config.customGroupRules[newGroup]) {
+                            // 如果新分组已存在，合并关键词（去重）
+                            config.customGroupRules[newGroup] = [...new Set([...config.customGroupRules[newGroup], ...keywords])];
+                        } else {
+                            // 否则创建新分组
+                            config.customGroupRules[newGroup] = keywords;
+                        }
+                        // 更新原始值
+                        this.dataset.originalValue = newGroup;
+                        // 重新渲染规则
+                        renderCustomGroupRules();
+                    }
+                });
+                
+                select.addEventListener('focus', function() {
+                    const currentValue = this.value;
+                    this.innerHTML = '';
+                    allNewGroupNames.forEach(groupName => {
+                        const option = document.createElement('option');
+                        option.value = groupName;
+                        option.textContent = groupName;
+                        this.appendChild(option);
+                    });
+                    if (currentValue && allNewGroupNames.includes(currentValue)) this.value = currentValue;
+                });
+            });
+        }
+
+        // 创建编辑分组规则的模态框
+        function createEditModal(group, keywords) {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4';
+            modal.innerHTML = `
+                <div class="bg-white rounded-lg shadow-lg w-full max-w-md">
+                    <div class="p-4 border-b border-gray-100">
+                        <h3 class="font-semibold text-lg">编辑分组规则</h3>
+                    </div>
+                    <div class="p-4">
+                        <div class="mb-3">
+                            <label class="block text-sm font-medium mb-1">分组名</label>
+                            <select id="editGroupRuleName" class="w-full p-2 border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-custom">
+                                <option value="">请选择分组名</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">关键词（用逗号分隔）</label>
+                            <input type="text" id="editGroupRuleKeywords" value="${keywords.join(',')}" class="w-full p-2 border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-custom">
+                        </div>
+                    </div>
+                    <div class="p-4 border-t border-gray-100 flex justify-end gap-2">
+                        <button id="cancelEdit" class="px-4 py-2 border border-gray-200 rounded hover:bg-gray-50 transition-custom focus:outline-none focus:ring-2 focus:ring-gray-200 active:btn-active">取消</button>
+                        <button id="saveEdit" class="px-4 py-2 bg-primary text-white rounded hover:bg-primary/90 transition-custom focus:outline-none focus:ring-2 focus:ring-primary/50 active:btn-active">保存</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            const editSelect = modal.querySelector('#editGroupRuleName');
+            allNewGroupNames.forEach(g => {
+                const option = document.createElement('option');
+                option.value = g;
+                option.textContent = g;
+                if (g === group) option.selected = true;
+                editSelect.appendChild(option);
+            });
+            
+            modal.querySelector('#cancelEdit').addEventListener('click', () => document.body.removeChild(modal));
+            
+            modal.querySelector('#saveEdit').addEventListener('click', () => {
+                const newGroupName = editSelect.value;
+                const newKeywordsStr = modal.querySelector('#editGroupRuleKeywords').value;
+                
+                if (!newGroupName || !newKeywordsStr) {
+                    showFullScreenMessage('分组名和关键词不能为空', 'error', 2000);
+                    return;
+                }
+                
+                const newKeywords = newKeywordsStr.split(',').map(k => k.trim()).filter(k => k);
+                
+                if (newKeywords.length > 0) {
+                    delete config.customGroupRules[group];
+                    config.customGroupRules[newGroupName] = newKeywords;
+                    renderCustomGroupRules();
+                    autoSaveConfig();
+                    document.body.removeChild(modal);
+                } else {
+                    showFullScreenMessage('请输入有效的关键词', 'error', 2000);
+                }
+            });
+        }
+
+        // 从文本解析直播源
+        function parseChannels(text) {
+            const lines = text.split('\n');
+            const channels = [];
+            let currentChannel = null;
+            let currentGroupName = "";
+            let currentTvgLogo = "";
+            
+            for (let line of lines) {
+                line = line.trim();
+                if (!line) continue;
+                
+                // 检测 #genre# 标记
+                const genreMatch = line.match(/^(.+?)#genre#$/);
+                if (genreMatch) {
+                    currentGroupName = genreMatch[1].trim();
+                    continue;
+                }
+                
+                if (line.startsWith('#EXTGRP:')) {
+                    currentGroupName = line.substring(8).trim();
+                } else if (line.startsWith('#EXTINF:')) {
+                    const nameMatch = line.match(/#EXTINF:.*,(.*)/);
+                    const channelName = nameMatch ? nameMatch[1].trim() : '未知频道';
+                    
+                    const tvgLogoMatch = line.match(/tvg-logo="([^"]+)"/);
+                    currentTvgLogo = tvgLogoMatch ? tvgLogoMatch[1] : "";
+                    
+                    const groupTitleMatch = line.match(/group-title="([^"]+)"/);
+                    if (groupTitleMatch) currentGroupName = groupTitleMatch[1].trim();
+                    
+                    currentChannel = { name: channelName, groupName: currentGroupName, url: null, tvgLogo: currentTvgLogo, originalLine: line };
+                } else if (currentChannel && /^(http|https|rtmp|rtsp):\/\//.test(line)) {
+                    currentChannel.url = line;
+                    channels.push({...currentChannel});
+                    currentChannel = null;
+                } else if (!line.startsWith('#')) {
+                    const separator = line.includes(',') ? ',' : line.includes('|') ? '|' : null;
+                    if (separator) {
+                        const [name, url] = line.split(separator, 2);
+                        if (name && url) {
+                            channels.push({
+                                name: name.trim(),
+                                groupName: currentGroupName,
+                                url: url.trim(),
+                                tvgLogo: "",
+                                originalLine: line
+                            });
+                        }
+                    }
+                }
+            }
+            
+            return channels;
+        }
+
+        // 工具函数：从URL中提取源标识
+        const extractSourceIdentifier = (url, identifiers) => {
+            if (!url || !identifiers || !identifiers.length) return null;
+            const lowerUrl = url.toLowerCase();
+            return identifiers.find(identifier => lowerUrl.includes(identifier.toLowerCase())) || null;
+        };
+
+        // 对同一频道的不同源进行排序
+        function sortChannelSources(channels, identifiers) {
+            const groupedByChannel = {};
+            
+            channels.forEach(channel => {
+                if (!groupedByChannel[channel.name]) groupedByChannel[channel.name] = [];
+                groupedByChannel[channel.name].push(channel);
+            });
+            
+            const sortedChannels = [];
+            Object.values(groupedByChannel).forEach(sources => {
+                sources.forEach(source => {
+                    source.sortWeight = source.sourceIdentifier ? identifiers.indexOf(source.sourceIdentifier) : identifiers.length;
+                });
+                sources.sort((a, b) => a.sortWeight - b.sortWeight);
+                sortedChannels.push(...sources);
+            });
+            
+            return sortedChannels;
+        }
+
+        // 只保留每个频道的最佳来源
+        function keepOnlyBestSources(channels, identifiers) {
+            const groupedByChannel = {};
+            
+            channels.forEach(channel => {
+                if (!groupedByChannel[channel.name]) groupedByChannel[channel.name] = [];
+                groupedByChannel[channel.name].push(channel);
+            });
+            
+            return Object.values(groupedByChannel).map(sources => {
+                sources.forEach(source => {
+                    source.sortWeight = source.sourceIdentifier ? identifiers.indexOf(source.sourceIdentifier) : identifiers.length;
+                });
+                sources.sort((a, b) => a.sortWeight - b.sortWeight);
+                return sources[0];
+            });
+        }
+
+        // 工具函数：检查字符串是否包含关键词数组中的任意关键词
+        const hasAnyKeyword = (str, keywords) => keywords.some(key => str.includes(key));
+
+        // 净化频道名
+        const purifyChannelName = (channelName) => {
+            let name = channelName;
+            
+            if (config.purificationRules.uppercaseCCTV) name = name.replace(/cctv/gi, 'CCTV');
+            if (config.purificationRules.removeBrackets) name = name.replace(/[\(\)\（\）].*?[\)\(\）\(]/g, '');
+            if (config.purificationRules.removeNumberPrefix) name = name.replace(/^\d+[\.\- ]?/, '');
+            
+            if (config.purificationRules.removeModifiers && config.purificationRules.modifierWords.length) {
+                const sortedModifiers = [...config.purificationRules.modifierWords].sort((a, b) => b.length - a.length);
+                name = name.replace(new RegExp(sortedModifiers.join('|'), 'g'), '');
+            }
+            
+            if (config.purificationRules.standardizeCCTV && name.startsWith('CCTV')) {
+                // 处理4K和8K特殊情况（必须在数字匹配之前）
+                if (name.match(/CCTV4[Kk]/)) {
+                    return 'CCTV-4K 超高清';
+                }
+                if (name.match(/CCTV8[Kk]/)) {
+                    return 'CCTV-8K 超高清';
+                }
+                
+                // 特殊处理CCTV5p（应该是CCTV5+）
+                if (name.match(/CCTV5[Pp]/)) {
+                    return 'CCTV-5+ 体育赛事';
+                }
+                
+                // 特殊处理CCTV4欧洲和美洲
+                if (name.includes('欧洲') || name.toLowerCase().includes('欧')) {
+                    return 'CCTV-4 中文国际欧洲';
+                }
+                if (name.includes('美洲') || name.toLowerCase().includes('美')) {
+                    return 'CCTV-4 中文国际美洲';
+                }
+                
+                // 标准化CCTV频道命名：数字加后缀格式
+                const match = name.match(/CCTV-?(\d+)([+]?)/);
+                
+                if (match) {
+                    const num = parseInt(match[1]);
+                    const plus = match[2];
+                    
+                    // CCTV频道后缀映射
+                    const cctvSuffixes = {
+                        1: '综合',
+                        2: '财经', 
+                        3: '综艺',
+                        4: '中文国际',
+                        5: '体育',
+                        6: '电影',
+                        7: '国防军事',
+                        8: '电视剧',
+                        9: '纪录',
+                        10: '科教',
+                        11: '戏曲',
+                        12: '社会与法',
+                        13: '新闻',
+                        14: '少儿',
+                        15: '音乐',
+                        16: '奥林匹克',
+                        17: '农业农村'
+                    };
+                    
+                    if (plus === '+' && num === 5) {
+                        return 'CCTV-5+ 体育赛事';
+                    } else if (cctvSuffixes[num]) {
+                        return `CCTV-${num} ${cctvSuffixes[num]}`;
+                    } else {
+                        return `CCTV-${num}`;
+                    }
+                }
+            }
+            
+            return name.replace(/\s+/g, '').replace(/-{2,}/g, '-').trim();
+        };
+
+        // 处理单个频道：映射名称+净化名称+过滤
+        const processChannel = (channel) => {
+            if (hasAnyKeyword(channel.name, config.filterKeywords)) return null;
+            
+            const sourceIdentifier = extractSourceIdentifier(channel.url, config.sourceSorting.identifiers);
+            
+            const lowerUrl = channel.url.toLowerCase();
+            const isBlocked = config.sourceSorting.blockedIdentifiers.some(identifier => 
+                lowerUrl.includes(identifier.toLowerCase())
+            );
+            
+            if (isBlocked) return null;
+            
+            // 先进行频道名映射
+            const mappedName = config.channelNameMapping[channel.name] || 
+                              Object.entries(config.channelNameMapping).find(([k, v]) => channel.name.includes(k))?.[1] || 
+                              channel.name;
+            
+            // 再进行频道名净化
+            const finalName = purifyChannelName(mappedName);
+            
+            return { ...channel, name: finalName, originalGroupName: channel.groupName, originalName: channel.name, sourceIdentifier };
+        };
+
+        // 确定频道最终分组
+        const determineGroup = (channel) => {
+            const mappedGroup = config.groupNameMapping[channel.originalGroupName] || channel.originalGroupName;
+            
+            for (const [group, keywords] of Object.entries(config.customGroupRules)) {
+                if (hasAnyKeyword(channel.name, keywords)) return group;
+            }
+            
+            return mappedGroup;
+        };
+
+        // 对CCTV频道排序的辅助函数
+        const getCCTVOrder = (name) => {
+            if (!name.startsWith('CCTV')) return Infinity;
+            if (name.includes('4K') || name.includes('4k')) return 998;
+            if (name.includes('8K') || name.includes('8k')) return 999;
+            
+            // 匹配新的CCTV-1 综合格式
+            const numMatch = name.match(/CCTV-(\d+)(\+)?/);
+            if (!numMatch) return 997;
+            
+            const base = parseInt(numMatch[1], 10);
+            return numMatch[2] ? base + 0.5 : base;
+        };
+
+        // 去重功能
+        const removeDuplicates = (channels) => {
+            if (!config.duplicateRemoval.enabled) return channels;
+            
+            const seen = new Set();
+            return channels.filter(channel => {
+                const key = channel.url.toLowerCase();
+                if (seen.has(key)) {
+                    return false;
+                }
+                seen.add(key);
+                return true;
+            });
+        };
+
+        // 主处理流程
+        const main = (channelList) => {
+            const validChannels = channelList.map(processChannel).filter(Boolean);
+            const groupedChannels = validChannels.map(channel => ({
+                ...channel,
+                groupName: determineGroup(channel)
+            }));
+
+            let sortedSources = groupedChannels;
+            if (config.sourceSorting.enabled) {
+                sortedSources = sortChannelSources(groupedChannels, config.sourceSorting.identifiers);
+                if (config.sourceSorting.keepOnlyBest) {
+                    sortedSources = keepOnlyBestSources(sortedSources, config.sourceSorting.identifiers);
+                }
+            }
+
+            // 应用去重功能
+            sortedSources = removeDuplicates(sortedSources);
+
+            return [...sortedSources].sort((a, b) => {
+                const groupA = config.groupNameSort.indexOf(a.groupName);
+                const groupB = config.groupNameSort.indexOf(b.groupName);
+                const groupOrder = (groupA === -1 ? config.groupNameSort.length : groupA) - 
+                                 (groupB === -1 ? config.groupNameSort.length : groupB);
+                
+                if (groupOrder !== 0) return groupOrder;
+                
+                const cctvOrder = getCCTVOrder(a.name) - getCCTVOrder(b.name);
+                if (cctvOrder !== 0) return cctvOrder;
+                
+                return (a.sortWeight || 0) - (b.sortWeight || 0);
+            }).filter(channel => !config.filterGroups.includes(channel.groupName));
+        };
+
+        // 处理频道列表
+        function processChannels(channelList) {
+            elements.noResult.innerHTML = `
+                <div class="text-center py-16 text-gray-500">
+                    <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+                        <i class="fa fa-circle-o-notch fa-spin text-2xl text-gray-400"></i>
+                    </div>
+                    <p class="text-gray-600">正在处理频道...</p>
+                    <p class="text-sm mt-2 text-gray-500">请稍候</p>
+                </div>
+            `;
+            elements.noResult.style.display = 'block';
+            elements.resultContainer.style.display = 'none';
+            
+            const ipPort = elements.replaceIpPort.value.trim();
+            const tvgLogoUrl = elements.tvgLogoUrl.value.trim();
+            const enableTvgLogoReplace = elements.enableTvgLogoReplace.checked;
+            
+            let replacedChannels = channelList;
+            if (ipPort || (enableTvgLogoReplace && tvgLogoUrl)) {
+                replacedChannels = channelList.map(channel => {
+                    let updatedChannel = { ...channel };
+                    
+                    if (ipPort && channel.url) {
+                        try {
+                            const urlObj = new URL(channel.url);
+                            urlObj.host = ipPort;
+                            updatedChannel.url = urlObj.toString();
+                        } catch (e) {
+                            // 不是标准url则不处理
+                        }
+                    }
+                    
+                    if (enableTvgLogoReplace && tvgLogoUrl) {
+                        // 使用净化后的频道名
+                        const purifiedName = purifyChannelName(updatedChannel.name);
+                        
+                        // 对于CCTV频道，生成CCTV+频道号.png格式的Logo文件名
+                        let logoName = purifiedName;
+                        if (purifiedName.startsWith('CCTV')) {
+                            // 特殊处理CCTV4美洲和欧洲
+                            if (purifiedName === 'CCTV-4 中文国际美洲') {
+                                logoName = 'CCTV4美洲';
+                            } else if (purifiedName === 'CCTV-4 中文国际欧洲') {
+                                logoName = 'CCTV4欧洲';
+                            } else {
+                                // 从CCTV-1 综合格式中提取频道号，生成CCTV+频道号格式
+                                const cctvMatch = purifiedName.match(/^CCTV-(4K|8K|\d+[+]?)/);
+                                if (cctvMatch) {
+                                    logoName = `CCTV${cctvMatch[1].toUpperCase()}`;
+                                }
+                            }
+                        }
+                        
+                        const logoFileName = `${logoName}.png`;
+                        updatedChannel.tvgLogo = tvgLogoUrl.endsWith('/') ? 
+                            tvgLogoUrl + logoFileName : tvgLogoUrl + '/' + logoFileName;
+                    }
+                    
+                    return updatedChannel;
+                });
+            }
+            
+            // 保存配置
+            config.duplicateRemoval.enabled = elements.enableDuplicateRemoval.checked;
+            config.purificationRules = {
+                ...config.purificationRules,
+                removeBrackets: elements.ruleRemoveBrackets.checked,
+                removeNumberPrefix: elements.ruleRemoveNumberPrefix.checked,
+                removeModifiers: elements.ruleRemoveModifiers.checked,
+                standardizeCCTV: elements.ruleStandardizeCCTV.checked,
+                uppercaseCCTV: elements.ruleUppercaseCCTV.checked,
+                modifierWords: elements.modifierWords.value.split(',').map(m => m.trim()).filter(m => m)
+            };
+            
+            config.sourceSorting = {
+                ...config.sourceSorting,
+                identifiers: elements.sourceIdentifiers.value.split(',').map(i => i.trim()).filter(i => i),
+                blockedIdentifiers: elements.blockedSourceIdentifiers.value.split(',').map(i => i.trim()).filter(i => i),
+                enabled: elements.enableSourceSorting.checked,
+                keepOnlyBest: elements.keepOnlyBestSource.checked
+            };
+            
+            setTimeout(() => {
+                const finalChannels = main(replacedChannels);
+                renderProcessedChannels(finalChannels);
+            }, 300);
+        }
+
+        // 渲染处理结果
+        function renderProcessedChannels(channels) {
+            processedChannels = channels;
+            
+            if (channels.length === 0) {
+                elements.noResult.innerHTML = `
+                    <div class="text-center py-16 text-gray-500">
+                        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+                            <i class="fa fa-exclamation-triangle text-2xl text-yellow-500"></i>
+                        </div>
+                        <p class="text-gray-600">没有符合条件的频道</p>
+                        <p class="text-sm mt-2 text-gray-500">请调整过滤条件后重试</p>
+                    </div>
+                `;
+                elements.noResult.style.display = 'block';
+                elements.resultContainer.style.display = 'none';
+                elements.exportButtons.classList.add('hidden');
+                return;
+            }
+            
+            elements.noResult.style.display = 'none';
+            elements.resultContainer.style.display = 'block';
+            elements.exportButtons.classList.remove('hidden');
+            elements.uploadToGist.disabled = false;
+            
+            // 检测并显示格式
+            const detectedFormat = detectContentFormat(channels);
+            const selectedFormat = elements.displayFormat.value;
+            elements.detectedFormat.textContent = selectedFormat.toUpperCase();
+            elements.formatIndicator.classList.remove('hidden');
+            
+            // 更新统计信息
+            elements.totalChannels.textContent = originalChannels.length;
+            elements.remainingChannels.textContent = channels.length;
+            elements.resultStats.classList.remove('hidden');
+            
+            // 按组整理频道
+            const channelsByGroup = {};
+            channels.forEach(channel => {
+                if (!channelsByGroup[channel.groupName]) channelsByGroup[channel.groupName] = [];
+                channelsByGroup[channel.groupName].push(channel);
+            });
+            
+            // 更新分组过滤器
+            elements.groupFilter.innerHTML = '<option value="all">所有分组</option>';
+            Object.keys(channelsByGroup).sort((a, b) => config.groupNameSort.indexOf(a) - config.groupNameSort.indexOf(b))
+                .forEach(group => {
+                    const option = document.createElement('option');
+                    option.value = group;
+                    option.textContent = `${group} (${channelsByGroup[group].length})`;
+                    elements.groupFilter.appendChild(option);
+                });
+            
+            // 渲染频道列表
+            renderFilteredChannels(channels);
+            
+            // 只显示对应格式的导出按钮
+            if (selectedFormat === 'txt') {
+                elements.exportM3U.classList.add('hidden');
+                elements.exportTXT.classList.remove('hidden');
+            } else {
+                elements.exportM3U.classList.remove('hidden');
+                elements.exportTXT.classList.add('hidden');
+            }
+            // 隐藏"格式: txt/m3u"显示
+            elements.formatIndicator.classList.add('hidden');
+        }
+
+        // 根据搜索和分组筛选渲染频道
+        function renderFilteredChannels(allChannels) {
+            const searchTerm = elements.searchChannels.value.toLowerCase();
+            const selectedGroup = elements.groupFilter.value;
+            
+            let filteredChannels = allChannels;
+            
+            // 应用分组过滤
+            if (selectedGroup !== 'all') {
+                filteredChannels = filteredChannels.filter(channel => channel.groupName === selectedGroup);
+            }
+            
+            // 应用搜索过滤
+            if (searchTerm) {
+                filteredChannels = filteredChannels.filter(channel => 
+                    channel.name.toLowerCase().includes(searchTerm) || 
+                    channel.groupName.toLowerCase().includes(searchTerm) ||
+                    (channel.sourceIdentifier && channel.sourceIdentifier.toLowerCase().includes(searchTerm))
+                );
+            }
+            
+            // 按组整理过滤后的频道
+            const filteredByGroup = {};
+            filteredChannels.forEach(channel => {
+                if (!filteredByGroup[channel.groupName]) filteredByGroup[channel.groupName] = [];
+                filteredByGroup[channel.groupName].push(channel);
+            });
+            
+            // 渲染
+            elements.channelsResult.innerHTML = '';
+            
+            // 按排序顺序遍历分组
+            const sortedGroups = Object.keys(filteredByGroup).sort((a, b) => 
+                config.groupNameSort.indexOf(a) - config.groupNameSort.indexOf(b)
+            );
+            
+            sortedGroups.forEach(group => {
+                const groupChannels = filteredByGroup[group];
+                
+                const groupEl = document.createElement('div');
+                groupEl.className = 'bg-gray-50 rounded-lg overflow-hidden shadow-sm transition-custom hover:shadow';
+                
+                const groupHeader = document.createElement('div');
+                groupHeader.className = 'bg-primary/5 px-4 py-2.5 font-medium flex justify-between items-center';
+                groupHeader.innerHTML = `
+                    <span>${group}</span>
+                    <span class="text-sm text-gray-500 bg-white px-2 py-0.5 rounded-full">${groupChannels.length}个频道</span>
+                `;
+                
+                const groupBody = document.createElement('div');
+                groupBody.className = 'divide-y divide-gray-100';
+                
+                groupChannels.forEach(channel => {
+                    const channelEl = document.createElement('div');
+                    channelEl.className = 'px-4 py-3 hover:bg-gray-50 transition-custom';
+                    
+                    // 构建源标识显示
+                    const sourceIdentifierHtml = channel.sourceIdentifier ? 
+                        `<span class="bg-accent/10 text-accent px-2 py-0.5 rounded-full mr-2">${channel.sourceIdentifier}</span>` : '';
+                    
+                    // 构建净化信息展示
+                    const purificationInfo = channel.name !== channel.originalName ? `
+                        <div class="text-xs text-gray-500 mt-1.5">
+                            <span class="bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">原始名称: ${channel.originalName}</span>
+                            <span class="bg-green-50 text-green-700 px-2 py-0.5 rounded-full ml-2">净化后: ${channel.name}</span>
+                        </div>
+                    ` : '';
+                    
+                    // 根据选择的格式构建显示内容
+                    const selectedFormat = elements.displayFormat.value;
+                    let formatInfo = '';
+                    
+                    if (selectedFormat === 'txt') {
+                        // TXT格式显示
+                        formatInfo = `
+                            <div class="text-xs text-gray-600 bg-gray-50 p-2 rounded mb-2 font-mono break-all">
+                                <div class="text-gray-500 mb-1">TXT格式:</div>
+                                <div class="text-gray-700">${channel.name},${channel.url}</div>
+                            </div>
+                        `;
+                    } else {
+                        // M3U格式显示
+                        let extInfLine = '#EXTINF:-1';
+                        if (channel.tvgLogo) extInfLine += ` tvg-logo="${channel.tvgLogo}"`;
+                        if (config.m3uUserAgent) extInfLine += ` http-user-agent="${config.m3uUserAgent}"`;
+                        extInfLine += ` group-title="${channel.groupName}",${channel.name}`;
+                        
+                        formatInfo = `
+                            <div class="text-xs text-gray-600 bg-gray-50 p-2 rounded mb-2 font-mono break-all">
+                                <div class="text-gray-500 mb-1">#EXTINF行:</div>
+                                <div class="text-gray-700">${extInfLine}</div>
+                            </div>
+                        `;
+                    }
+                    
+                    channelEl.innerHTML = `
+                        <div class="font-medium mb-1.5 flex items-center">
+                            ${channel.name}
+                            ${sourceIdentifierHtml}
+                        </div>
+                        ${formatInfo}
+                        <div class="text-sm text-gray-600 truncate break-all mb-1 group-hover:whitespace-normal group-hover:break-all group-hover:truncate-none transition-custom">${channel.url}</div>
+                        <div class="text-xs text-gray-500 flex flex-wrap gap-2">
+                            <span class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">分组: ${channel.groupName}</span>
+                            ${channel.tvgLogo ? `<span class="bg-green-50 text-green-700 px-2 py-0.5 rounded-full break-all">Logo: ${channel.tvgLogo}</span>` : ''}
+                        </div>
+                        ${purificationInfo}
+                    `;
+                    groupBody.appendChild(channelEl);
+                });
+                
+                groupEl.appendChild(groupHeader);
+                groupEl.appendChild(groupBody);
+                elements.channelsResult.appendChild(groupEl);
+            });
+            
+            // 如果没有匹配结果
+            if (filteredChannels.length === 0) {
+                elements.channelsResult.innerHTML = `
+                    <div class="text-center py-12 text-gray-500">
+                        <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 mb-3">
+                            <i class="fa fa-search text-xl text-gray-400"></i>
+                        </div>
+                        <p>没有找到匹配的频道</p>
+                        <p class="text-sm mt-1 text-gray-500">请尝试其他搜索词或分组</p>
+                    </div>
+                `;
+            }
+        }
+
+        // 导出功能
+        const ExportUtils = {
+            getNumericOrder(name) {
+                const match = name.match(/^(\d{1,3})/);
+                return match ? parseInt(match[1], 10) : Infinity;
+            },
+            
+            exportAsM3U(channels) {
+                let content = '#EXTM3U\n', currentGroup = null;
+                channels.forEach(channel => {
+                    if (channel.groupName !== currentGroup) {
+                        content += `#EXTGRP:${channel.groupName}\n`;
+                        currentGroup = channel.groupName;
+                    }
+                    let extInfLine = '#EXTINF:-1';
+                    if (channel.tvgLogo) extInfLine += ` tvg-logo="${channel.tvgLogo}"`;
+                    if (config.m3uUserAgent) extInfLine += ` http-user-agent="${config.m3uUserAgent}"`;
+                    extInfLine += ` group-title="${channel.groupName}",${channel.name}`;
+                    content += `${extInfLine}\n${channel.url}\n`;
+                });
+                downloadFile(content, 'channels.m3u', 'application/x-mpegURL');
+            },
+            
+            exportAsTXT(channels) {
+                const channelsByGroup = {};
+                channels.forEach(channel => {
+                    if (!channelsByGroup[channel.groupName]) channelsByGroup[channel.groupName] = [];
+                    channelsByGroup[channel.groupName].push(channel);
+                });
+                
+                const sortedGroups = Object.keys(channelsByGroup).sort((a, b) => {
+                    const idxA = config.groupNameSort.indexOf(a);
+                    const idxB = config.groupNameSort.indexOf(b);
+                    if (idxA === -1 && idxB === -1) return a.localeCompare(b);
+                    if (idxA === -1) return 1;
+                    if (idxB === -1) return -1;
+                    return idxA - idxB;
+                });
+                
+                const content = sortedGroups.map(groupName => {
+                    const groupHeader = `${groupName}#genre#`;
+                    const sortedChannels = channelsByGroup[groupName].slice().sort((a, b) => {
+                        const numA = this.getNumericOrder(a.name);
+                        const numB = this.getNumericOrder(b.name);
+                        if (numA !== numB) return numA - numB;
+                        return a.name.localeCompare(b.name, 'zh-CN', { numeric: true });
+                    });
+                    const groupContent = sortedChannels.map(channel => `${channel.name},${channel.url}`).join('\n');
+                    return `${groupHeader}\n${groupContent}`;
+                }).join('\n\n');
+                downloadFile(content, 'channels.txt', 'text/plain');
+            }
+        };
+
+        // 下载文件工具函数
+        function downloadFile(content, filename, mimeType) {
+            const exportBtn = filename.endsWith('.m3u') ? elements.exportM3U : elements.exportTXT;
+            const originalText = exportBtn.innerHTML;
+            exportBtn.disabled = true;
+            exportBtn.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i>导出中...';
+            
+            Utils.downloadFile(content, filename, mimeType);
+            
+            setTimeout(() => {
+                exportBtn.disabled = false;
+                exportBtn.innerHTML = originalText;
+            }, 1000);
+        }
+
+        // 检测内容格式
+        function detectContentFormat(channels) {
+            // 检查是否有分组信息
+            const hasGroups = channels.some(channel => channel.groupName && channel.groupName.trim() !== '');
+            
+            // 检查是否有M3U特有的信息（如tvgLogo）
+            const hasM3UFeatures = channels.some(channel => channel.tvgLogo && channel.tvgLogo.trim() !== '');
+            
+            // 如果有分组信息或M3U特有信息，优先使用M3U格式
+            if (hasGroups || hasM3UFeatures) {
+                return 'm3u';
+            }
+            
+            // 否则使用TXT格式
+            return 'txt';
+        }
+
+        // 内容生成工具
+        const ContentUtils = {
+            generateM3UContent(channels) {
+                let content = '#EXTM3U\n', currentGroup = null;
+                channels.forEach(channel => {
+                    if (channel.groupName !== currentGroup) {
+                        content += `#EXTGRP:${channel.groupName}\n`;
+                        currentGroup = channel.groupName;
+                    }
+                    let extInfLine = '#EXTINF:-1';
+                    if (channel.tvgLogo) extInfLine += ` tvg-logo="${channel.tvgLogo}"`;
+                    if (config.m3uUserAgent) extInfLine += ` http-user-agent="${config.m3uUserAgent}"`;
+                    extInfLine += ` group-title="${channel.groupName}",${channel.name}`;
+                    content += `${extInfLine}\n${channel.url}\n`;
+                });
+                return content;
+            },
+            
+            generateTXTContent(channels) {
+                const channelsByGroup = {};
+                channels.forEach(channel => {
+                    if (!channelsByGroup[channel.groupName]) channelsByGroup[channel.groupName] = [];
+                    channelsByGroup[channel.groupName].push(channel);
+                });
+                
+                const sortedGroups = Object.keys(channelsByGroup).sort();
+                return sortedGroups.map(groupName => {
+                    const groupHeader = `${groupName}#genre#`;
+                    const sortedChannels = channelsByGroup[groupName].sort((a, b) => a.name.localeCompare(b.name));
+                    const groupContent = sortedChannels.map(channel => `${channel.name},${channel.url}`).join('\n');
+                    return `${groupHeader}\n${groupContent}`;
+                }).join('\n\n');
+            }
+        };
+
+        // 显示Gist链接弹窗
+        function showGistLinks(gistUrl, rawUrl) {
+            // 设置链接内容
+            elements.gistPageLinkInput.value = gistUrl;
+            elements.gistRawLinkInput.value = rawUrl;
+            
+            // 显示弹窗
+            elements.gistSuccessModal.classList.remove('hidden');
+            elements.gistModalContent.classList.remove('scale-95', 'opacity-0');
+            elements.gistModalContent.classList.add('scale-100', 'opacity-100');
+            
+            // 确保悬浮图标显示
+            showFloatingIcon(gistUrl, rawUrl);
+        }
+
+        // 隐藏Gist弹窗
+        function hideGistModal() {
+            elements.gistModalContent.classList.remove('scale-100', 'opacity-100');
+            elements.gistModalContent.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                elements.gistSuccessModal.classList.add('hidden');
+                // 确保悬浮图标保持显示状态
+                if (elements.gistFloatingBtn.dataset.gistUrl) {
+                    elements.gistFloatingIcon.classList.remove('hidden');
+                    console.log('弹窗关闭后，悬浮图标保持显示');
+                } else {
+                    console.log('没有找到链接数据，悬浮图标不显示');
+                }
+            }, 300);
+        }
+
+        // 显示悬浮图标
+        function showFloatingIcon(gistUrl, rawUrl) {
+            elements.gistFloatingIcon.classList.remove('hidden');
+            // 存储链接数据到悬浮图标
+            elements.gistFloatingBtn.dataset.gistUrl = gistUrl;
+            elements.gistFloatingBtn.dataset.rawUrl = rawUrl;
+            console.log('悬浮图标已显示，链接:', gistUrl);
+        }
+
+        // 隐藏悬浮图标
+        function hideFloatingIcon() {
+            elements.gistFloatingIcon.classList.add('hidden');
+        }
+
+        // 只显示悬浮图标（不显示弹窗）
+        function showFloatingIconOnly(gistUrl, rawUrl) {
+            showFloatingIcon(gistUrl, rawUrl);
+            console.log('仅显示悬浮图标，链接:', gistUrl);
+        }
+
+        // 上传到GitHub Gist
+        async function uploadToGist() {
+            if (!processedChannels || processedChannels.length === 0) {
+                showFullScreenMessage('请先处理直播源文件', 'error', 2000);
+                return;
+            }
+            
+            const gistId = elements.gistId.value.trim();
+            const token = elements.githubToken.value.trim();
+            let fileName = elements.gistFileName.value.trim() || 'channels.m3u';
+            
+            if (!gistId || !token) {
+                showFullScreenMessage('请填写Gist ID和GitHub访问令牌', 'error', 2000);
+                return;
+            }
+            
+            // 根据选择的展示格式决定上传格式
+            const selectedFormat = elements.displayFormat.value;
+            if (selectedFormat === 'txt' && !fileName.endsWith('.txt')) {
+                fileName = fileName.replace(/\.m3u$/, '.txt');
+            } else if (selectedFormat === 'm3u' && !fileName.endsWith('.m3u')) {
+                fileName = fileName.replace(/\.txt$/, '.m3u');
+            }
+            
+            // 保存配置
+            config.gistConfig.id = gistId;
+            config.gistConfig.token = token;
+            config.gistConfig.fileName = fileName;
+            
+            // 根据选择的格式生成内容
+            let content;
+            if (selectedFormat === 'txt') {
+                content = ContentUtils.generateTXTContent(processedChannels);
+            } else {
+                content = ContentUtils.generateM3UContent(processedChannels);
+            }
+            
+            // 显示上传中状态
+            showFullScreenMessage('正在上传到Gist...', 'success', 3000);
+            
+            // 禁用上传按钮
+            elements.uploadToGist.disabled = true;
+            const originalText = elements.uploadToGist.innerHTML;
+            elements.uploadToGist.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i>上传中...';
+            
+            try {
+                // 先获取现有Gist
+                const response = await fetch(`https://api.github.com/gists/${gistId}`, {
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`获取Gist失败: ${response.statusText}`);
+                }
+                
+                const gist = await response.json();
+                
+                // 准备更新数据
+                const files = { ...gist.files };
+                files[fileName] = { content };
+                
+                // 删除其他文件（如果有）
+                Object.keys(files).forEach(key => {
+                    if (key !== fileName) {
+                        files[key] = null; // 标记删除
+                    }
+                });
+                
+                // 更新Gist
+                const updateResponse = await fetch(`https://api.github.com/gists/${gistId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/vnd.github.v3+json'
+                    },
+                    body: JSON.stringify({ files })
+                });
+                
+                if (!updateResponse.ok) {
+                    throw new Error(`更新Gist失败: ${updateResponse.statusText}`);
+                }
+                
+                const updatedGist = await updateResponse.json();
+                
+                // 构建新的原始文件URL格式（不包含commitHash）
+                const username = updatedGist.owner.login;
+                const newRawUrl = `https://gist.githubusercontent.com/${username}/${gistId}/raw/${fileName}`;
+                
+                // 保存链接到配置中
+                config.gistConfig.lastUploaded = {
+                    gistUrl: updatedGist.html_url,
+                    rawUrl: newRawUrl
+                };
+                
+                // 显示成功状态和链接
+                showFullScreenMessage(`上传成功！`, 'success', 3000);
+                showGistLinks(updatedGist.html_url, newRawUrl);
+                
+            } catch (error) {
+                console.error('Gist上传错误:', error);
+                showFullScreenMessage(`上传失败: ${error.message}`, 'error', 3000);
+                // 隐藏悬浮图标
+                hideFloatingIcon();
+            } finally {
+                // 恢复上传按钮状态
+                elements.uploadToGist.disabled = false;
+                elements.uploadToGist.innerHTML = originalText;
+            }
+        }
+
+
+
+        // 从文本区域更新配置
+        function updateConfigFromUI() {
+            const updateArrayField = (element, field) => {
+                config[field] = element.value.split('\n').map(k => k.trim()).filter(k => k);
+            };
+            
+            const updateArrayFieldFromComma = (element, field) => {
+                config[field] = element.value.split(',').map(k => k.trim()).filter(k => k);
+            };
+            
+            updateArrayField(elements.filterKeywords, 'filterKeywords');
+            config.duplicateRemoval.enabled = elements.enableDuplicateRemoval.checked;
+            updateArrayField(elements.groupNameSort, 'groupNameSort');
+            updateArrayField(elements.filterGroups, 'filterGroups');
+            
+            config.purificationRules = {
+                ...config.purificationRules,
+                removeBrackets: elements.ruleRemoveBrackets.checked,
+                removeNumberPrefix: elements.ruleRemoveNumberPrefix.checked,
+                removeModifiers: elements.ruleRemoveModifiers.checked,
+                standardizeCCTV: elements.ruleStandardizeCCTV.checked,
+                uppercaseCCTV: elements.ruleUppercaseCCTV.checked,
+                modifierWords: elements.modifierWords.value.split(',').map(m => m.trim()).filter(m => m)
+            };
+            
+            config.sourceSorting = {
+                ...config.sourceSorting,
+                identifiers: elements.sourceIdentifiers.value.split(',').map(i => i.trim()).filter(i => i),
+                blockedIdentifiers: elements.blockedSourceIdentifiers.value.split(',').map(i => i.trim()).filter(i => i),
+                enabled: elements.enableSourceSorting.checked,
+                keepOnlyBest: elements.keepOnlyBestSource.checked
+            };
+            
+            config.tvgLogoConfig = {
+                enabled: elements.enableTvgLogoReplace.checked,
+                url: elements.tvgLogoUrl.value.trim()
+            };
+            
+            config.m3uUserAgent = elements.m3uUserAgent.value.trim();
+        }
+
+        // 初始化DOM元素引用
+        function initElements() {
+            const elementIds = [
+                'dropArea', 'fileInput', 'fileInfo', 'fileName', 'fileSize', 'removeFile', 'processBtn',
+                'filterKeywords', 'enableDuplicateRemoval', 'groupNameSort', 'filterGroups', 'groupMappingContainer', 'channelMappingContainer',
+                'customGroupRulesContainer', 'newGroupKey', 'newGroupValue', 'addGroupMapping', 'newChannelKey',
+                'newChannelValue', 'addChannelMapping', 'newGroupRuleName', 'newGroupRuleKeywords', 'addCustomGroupRule',
+                'noResult', 'resultContainer', 'channelsResult', 'resultStats', 'totalChannels', 'remainingChannels',
+                'exportButtons', 'exportM3U', 'exportTXT', 'uploadToGist', 'searchChannels', 'groupFilter',
+                'helpBtn', 'helpModal', 'closeHelp', 'ruleRemoveBrackets', 'ruleRemoveNumberPrefix', 'ruleRemoveModifiers',
+                'ruleStandardizeCCTV', 'ruleUppercaseCCTV', 'modifierWords', 'sourceIdentifiers', 'blockedSourceIdentifiers',
+                'enableSourceSorting', 'keepOnlyBestSource', 'gistId', 'githubToken', 'gistFileName', 'gistUploadContent',
+                'uploadStatus', 'replaceIpPort', 'tvgLogoUrl',
+                'enableTvgLogoReplace', 'm3uUserAgent',
+                // 新增
+                'urlInput', 'importUrlBtn', 'urlImportStatus', 'formatIndicator', 'detectedFormat', 'displayFormat',
+                // 配置管理相关
+                'configManagerBtn', 'configManagerModal', 'closeConfigManager', 'saveConfigName', 'saveCurrentConfig',
+                'configList', 'noConfigs', 'exportAllConfigs', 'importConfigs', 'importConfigsFile', 'clearAllConfigs',
+                // Gist弹窗相关
+                'gistSuccessModal', 'gistModalContent', 'closeGistModal', 'closeGistModalBtn', 'gistPageLinkInput', 'gistRawLinkInput',
+                'copyGistPageLink', 'copyGistRawLink', 'gistFloatingIcon', 'gistFloatingBtn'
+            ];
+            
+            elements = {};
+            elementIds.forEach(id => {
+                elements[id] = document.getElementById(id);
+            });
+        }
+
+        // 事件监听器
+        function setupEventListeners() {
+            // 文件拖放处理
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                elements.dropArea.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false);
+            });
+            
+            ['dragenter', 'dragover'].forEach(eventName => {
+                elements.dropArea.addEventListener(eventName, () => elements.dropArea.classList.add('border-primary', 'bg-primary/5'), false);
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                elements.dropArea.addEventListener(eventName, () => elements.dropArea.classList.remove('border-primary', 'bg-primary/5'), false);
+            });
+            
+            elements.dropArea.addEventListener('drop', e => {
+                isFileDialogOpen = false;
+                const dt = e.dataTransfer;
+                if (dt.files.length) FileUtils.handleFile(dt.files);
+            }, false);
+            
+            // 文件选择处理
+            elements.fileInput.addEventListener('change', function() {
+                isFileDialogOpen = false;
+                if (this.files.length) FileUtils.handleFile(this.files);
+            });
+            
+            elements.dropArea.addEventListener('click', function(e) {
+                const isLabelClick = e.target.closest('label') !== null;
+                if (!isFileDialogOpen && !isLabelClick) {
+                    isFileDialogOpen = true;
+                    elements.fileInput.click();
+                    setTimeout(() => isFileDialogOpen = false, 5000);
+                }
+            });
+            
+            // 移除文件
+            elements.removeFile.addEventListener('click', function() {
+                uploadedFiles = [];
+                allFileChannels = [];
+                originalChannels = [];
+                currentFile = null;
+                elements.fileInput.value = '';
+                resetAppState();
+            });
+            
+            // 处理按钮点击
+            elements.processBtn.addEventListener('click', function() {
+                if (!currentFile || !originalChannels.length) return;
+                
+                updateConfigFromUI();
+                processChannels(originalChannels);
+                elements.resultContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+            
+            // 添加组名映射
+            elements.addGroupMapping.addEventListener('click', function() {
+                const key = elements.newGroupKey.value.trim();
+                const value = elements.newGroupValue.value.trim();
+                
+                if (key && value) {
+                    config.groupNameMapping[key] = value;
+                    elements.newGroupKey.value = '';
+                    elements.newGroupValue.value = '';
+                    RenderUtils.renderGroupMappings();
+                    elements.newGroupKey.focus();
+                } else {
+                    showFullScreenMessage('请输入原始组名和新组名', 'error', 2000);
+                }
+            });
+            
+            // 添加频道名映射
+            elements.addChannelMapping.addEventListener('click', function() {
+                const key = elements.newChannelKey.value.trim();
+                const value = elements.newChannelValue.value.trim();
+                
+                if (key && value) {
+                    config.channelNameMapping[key] = value;
+                    elements.newChannelKey.value = '';
+                    elements.newChannelValue.value = '';
+                    RenderUtils.renderChannelMappings();
+                    elements.newChannelKey.focus();
+                } else {
+                    showFullScreenMessage('请输入原始频道名和新频道名', 'error', 2000);
+                }
+            });
+            
+            // 添加自定义分组规则
+            elements.addCustomGroupRule.addEventListener('click', function() {
+                const group = elements.newGroupRuleName.value;
+                const keywordsText = elements.newGroupRuleKeywords.value.trim();
+                
+                if (group && keywordsText) {
+                    const keywords = keywordsText.split(',').map(k => k.trim()).filter(k => k);
+                    
+                    if (keywords.length) {
+                        if (!config.customGroupRules[group]) config.customGroupRules[group] = [];
+                        keywords.forEach(keyword => {
+                            if (!config.customGroupRules[group].includes(keyword)) {
+                                config.customGroupRules[group].push(keyword);
+                            }
+                        });
+                        
+                        elements.newGroupRuleName.value = '';
+                        elements.newGroupRuleKeywords.value = '';
+                        renderCustomGroupRules();
+                        elements.newGroupRuleName.focus();
+                    } else {
+                        showFullScreenMessage('请输入有效的关键词', 'error', 2000);
+                    }
+                } else {
+                    showFullScreenMessage('请选择分组名并输入关键词', 'error', 2000);
+                }
+            });
+            
+            // 导出功能
+            const handleExport = () => {
+                if (processedChannels.length) {
+                    const selectedFormat = elements.displayFormat.value;
+                    if (selectedFormat === 'txt') {
+                        ExportUtils.exportAsTXT(processedChannels);
+                    } else {
+                        ExportUtils.exportAsM3U(processedChannels);
+                    }
+                }
+            };
+            elements.exportM3U.addEventListener('click', handleExport);
+            elements.exportTXT.addEventListener('click', handleExport);
+            elements.uploadToGist.addEventListener('click', uploadToGist);
+            
+            // 搜索和过滤
+            elements.searchChannels.addEventListener('input', () => processedChannels.length && renderFilteredChannels(processedChannels));
+            elements.groupFilter.addEventListener('change', () => processedChannels.length && renderFilteredChannels(processedChannels));
+            
+            // 帮助模态框
+            elements.helpBtn.addEventListener('click', function() {
+                const modal = elements.helpModal;
+                const modalContent = modal.querySelector('div');
+                modal.classList.remove('pointer-events-none');
+                modal.style.opacity = '1';
+                modalContent.style.transform = 'scale(1)';
+            });
+            
+            elements.closeHelp.addEventListener('click', function() {
+                const modal = elements.helpModal;
+                const modalContent = modal.querySelector('div');
+                modal.style.opacity = '0';
+                modalContent.style.transform = 'scale(0.95)';
+                setTimeout(() => modal.classList.add('pointer-events-none'), 300);
+            });
+            
+            elements.helpModal.addEventListener('click', function(e) {
+                if (e.target === this) elements.closeHelp.click();
+            });
+            
+            // 输入框回车键提交
+            elements.newGroupKey.addEventListener('keypress', e => e.key === 'Enter' && elements.newGroupValue.focus());
+            elements.newGroupValue.addEventListener('keypress', e => e.key === 'Enter' && elements.addGroupMapping.click());
+            elements.newChannelKey.addEventListener('keypress', e => e.key === 'Enter' && elements.newChannelValue.focus());
+            elements.newChannelValue.addEventListener('keypress', e => e.key === 'Enter' && elements.addChannelMapping.click());
+            elements.newGroupRuleName.addEventListener('keypress', e => e.key === 'Enter' && elements.newGroupRuleKeywords.focus());
+            elements.newGroupRuleKeywords.addEventListener('keypress', e => e.key === 'Enter' && elements.addCustomGroupRule.click());
+            
+            // 源排序相关选项变化事件
+            elements.enableSourceSorting.addEventListener('change', function() {
+                elements.keepOnlyBestSource.disabled = !this.checked;
+                if (!this.checked) elements.keepOnlyBestSource.checked = false;
+            });
+            
+            // Gist配置保存
+            elements.gistId.addEventListener('change', function() {
+                config.gistConfig.id = this.value.trim();
+            });
+            
+            // Logo配置保存
+            elements.tvgLogoUrl.addEventListener('change', function() {
+                config.tvgLogoConfig.url = this.value.trim();
+            });
+            
+            elements.enableTvgLogoReplace.addEventListener('change', function() {
+                config.tvgLogoConfig.enabled = this.checked;
+                // 如果启用Logo更换，自动聚焦到URL输入框
+                if (this.checked) {
+                    elements.tvgLogoUrl.focus();
+                }
+            });
+            
+            elements.githubToken.addEventListener('change', function() {
+                config.gistConfig.token = this.value.trim();
+            });
+            
+            elements.gistFileName.addEventListener('change', function() {
+                let value = this.value.trim();
+                if (!value.endsWith('.m3u')) {
+                    value += '.m3u';
+                    this.value = value;
+                }
+                config.gistConfig.fileName = value;
+            });
+            
+
+            
+            // 配置管理相关事件
+            if (elements.configManagerBtn) {
+                elements.configManagerBtn.onclick = () => ModalUtils.showConfigManagerModal();
+            }
+            if (elements.closeConfigManager) {
+                elements.closeConfigManager.onclick = () => ModalUtils.hideModal('configManagerModal');
+            }
+            if (elements.configManagerModal) {
+                elements.configManagerModal.onclick = function(e) {
+                    if (e.target === this) ModalUtils.hideModal('configManagerModal');
+                };
+            }
+            
+            // 保存当前配置
+            if (elements.saveCurrentConfig) {
+                elements.saveCurrentConfig.onclick = saveCurrentConfig;
+            }
+            if (elements.saveConfigName) {
+                elements.saveConfigName.onkeypress = function(e) {
+                    if (e.key === 'Enter') saveCurrentConfig();
+                };
+            }
+            
+            // 批量操作
+            if (elements.exportAllConfigs) {
+                elements.exportAllConfigs.onclick = exportAllConfigs;
+            }
+            if (elements.importConfigs) {
+                elements.importConfigs.onclick = importConfigs;
+            }
+            if (elements.importConfigsFile) {
+                elements.importConfigsFile.onchange = function() {
+                    if (this.files.length) ConfigActions.handleConfigsImport(this.files[0]);
+                };
+            }
+            if (elements.clearAllConfigs) {
+                elements.clearAllConfigs.onclick = clearAllConfigs;
+            }
+            
+            // 新增：URL导入按钮事件
+            elements.importUrlBtn.addEventListener('click', function() {
+                const urls = elements.urlInput.value.split('\n').map(u => u.trim()).filter(u => u);
+                if (!urls.length) {
+                    showFullScreenMessage('请输入至少一个URL', 'error', 2000);
+                    return;
+                }
+                handleUrlFiles(urls);
+            });
+            
+            // 展示格式选择事件
+            elements.displayFormat.addEventListener('change', function() {
+                const selectedFormat = this.value;
+                elements.detectedFormat.textContent = selectedFormat.toUpperCase();
+                // 更新Gist文件名
+                const gistFileName = elements.gistFileName.value.trim();
+                if (selectedFormat === 'txt' && !gistFileName.endsWith('.txt')) {
+                    elements.gistFileName.value = gistFileName.replace(/\.m3u$/, '.txt');
+                } else if (selectedFormat === 'm3u' && !gistFileName.endsWith('.m3u')) {
+                    elements.gistFileName.value = gistFileName.replace(/\.txt$/, '.m3u');
+                }
+                // 导出按钮联动
+                if (selectedFormat === 'txt') {
+                    elements.exportM3U.classList.add('hidden');
+                    elements.exportTXT.classList.remove('hidden');
+                } else {
+                    elements.exportM3U.classList.remove('hidden');
+                    elements.exportTXT.classList.add('hidden');
+                }
+                // 重新渲染频道列表以更新格式显示
+                if (processedChannels && processedChannels.length > 0) {
+                    renderFilteredChannels(processedChannels);
+                }
+            });
+            
+            // Gist弹窗事件监听器
+            elements.closeGistModal.addEventListener('click', hideGistModal);
+            elements.closeGistModalBtn.addEventListener('click', hideGistModal);
+            
+            // 点击弹窗背景关闭
+            elements.gistSuccessModal.addEventListener('click', function(e) {
+                if (e.target === this) hideGistModal();
+            });
+            
+            // 复制链接功能
+            elements.copyGistPageLink.addEventListener('click', function() {
+                elements.gistPageLinkInput.select();
+                document.execCommand('copy');
+                showFullScreenMessage('Gist页面链接已复制到剪贴板', 'success', 2000);
+            });
+            
+            elements.copyGistRawLink.addEventListener('click', function() {
+                elements.gistRawLinkInput.select();
+                document.execCommand('copy');
+                showFullScreenMessage('原始文件链接已复制到剪贴板', 'success', 2000);
+            });
+            
+            // 悬浮图标点击事件
+            elements.gistFloatingBtn.addEventListener('click', function() {
+                const gistUrl = this.dataset.gistUrl;
+                const rawUrl = this.dataset.rawUrl;
+                if (gistUrl && rawUrl) {
+                    showGistLinks(gistUrl, rawUrl);
+                    // 不隐藏悬浮图标，让用户可以再次点击
+                }
+            });
+        }
+
+        // 文件处理工具
+        const FileUtils = {
+            handleFiles(files) {
+                const validFiles = Array.from(files).filter(file => 
+                    file.name.endsWith('.m3u') || file.name.endsWith('.txt')
+                );
+                
+                if (validFiles.length === 0) {
+                    Utils.showMessage('请上传m3u或txt格式的文件', 'error', 2000);
+                    return;
+                }
+                
+                const newFiles = validFiles.filter(file => 
+                    !uploadedFiles.find(f => f.name === file.name && f.size === file.size)
+                );
+                
+                if (newFiles.length === 0) {
+                    Utils.showMessage('所有文件都已经上传过了', 'warning', 2000);
+                    return;
+                }
+                
+                if (newFiles.length !== validFiles.length) {
+                    Utils.showMessage(`${validFiles.length - newFiles.length} 个文件已存在，已跳过`, 'warning', 2000);
+                }
+                
+                uploadedFiles.push(...newFiles);
+                currentFile = newFiles[0];
+                updateFileInfoDisplay();
+                showParsingStatus(newFiles.length);
+                
+                let newChannels = [], processedFiles = 0;
+                newFiles.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = e => {
+                        const fileChannels = parseChannels(e.target.result).map(channel => ({
+                            ...channel, 
+                            originalName: channel.name,
+                            sourceFile: file.name
+                        }));
+                        newChannels.push(...fileChannels);
+                        processedFiles++;
+                        
+                        if (processedFiles === newFiles.length) {
+                            allFileChannels.push(...newChannels);
+                            originalChannels = allFileChannels;
+                            updateResultDisplay();
+                        }
+                    };
+                    reader.readAsText(file);
+                });
+            },
+            
+            handleFile(fileOrFiles) {
+                this.handleFiles(fileOrFiles instanceof FileList ? fileOrFiles : [fileOrFiles]);
+            }
+        };
+
+        // 显示解析状态
+        function showParsingStatus(fileCount) {
+            const text = fileCount === 1 ? '正在解析文件...' : `正在解析 ${fileCount} 个新文件...`;
+            elements.noResult.innerHTML = `
+                <div class="text-center py-16 text-gray-500">
+                    <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+                        <i class="fa fa-circle-o-notch fa-spin text-2xl text-gray-400"></i>
+                    </div>
+                    <p class="text-gray-600">${text}</p>
+                    <p class="text-sm mt-2 text-gray-500">请稍候</p>
+                </div>
+            `;
+            elements.noResult.style.display = 'block';
+            elements.resultContainer.style.display = 'none';
+        }
+
+        // 更新结果显示
+        function updateResultDisplay() {
+            if (originalChannels.length === 0) {
+                showFullScreenMessage('未从文件中解析到有效的直播源', 'error', 2000);
+                elements.processBtn.disabled = true;
+                elements.uploadToGist.disabled = true;
+                elements.noResult.innerHTML = `
+                    <div class="text-center py-16 text-gray-500">
+                        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+                            <i class="fa fa-exclamation-triangle text-2xl text-yellow-500"></i>
+                        </div>
+                        <p class="text-gray-600">未解析到有效直播源</p>
+                        <p class="text-sm mt-2 text-gray-500">请尝试其他文件</p>
+                    </div>
+                `;
+            } else {
+                elements.processBtn.disabled = false;
+                elements.uploadToGist.disabled = true;
+                showFullScreenMessage(`文件解析完成！共发现 ${originalChannels.length} 个直播源`, 'success', 3000);
+                elements.noResult.innerHTML = `
+                    <div class="text-center py-16 text-gray-500">
+                        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+                            <i class="fa fa-check text-2xl text-green-500"></i>
+                        </div>
+                        <p class="text-gray-600">文件解析完成</p>
+                        <p class="text-sm mt-1 text-gray-500">共发现 ${originalChannels.length} 个直播源（来自 ${uploadedFiles.length} 个文件）</p>
+                        <button id="quickProcessBtn" class="mt-4 bg-primary text-white py-2 px-4 rounded-md hover:bg-primary/90 transition-custom text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 active:btn-active">
+                            <i class="fa fa-play mr-1"></i>开始处理
+                        </button>
+                    </div>
+                `;
+                document.getElementById('quickProcessBtn').addEventListener('click', () => elements.processBtn.click());
+            }
+        }
+
+        // 更新文件信息显示
+        function updateFileInfoDisplay() {
+            if (uploadedFiles.length === 0) {
+                elements.fileInfo.classList.add('hidden');
+                return;
+            }
+            
+            elements.fileInfo.classList.remove('hidden');
+            
+            // 更新头部信息
+            const isSingle = uploadedFiles.length === 1;
+            if (isSingle) {
+                const file = uploadedFiles[0];
+                elements.fileName.textContent = file.name;
+                elements.fileSize.textContent = (file.size / 1024).toFixed(1) + ' KB';
+            } else {
+                const totalSize = uploadedFiles.reduce((sum, file) => sum + file.size, 0);
+                elements.fileName.textContent = `${uploadedFiles.length} 个文件`;
+                elements.fileSize.textContent = (totalSize / 1024).toFixed(1) + ' KB';
+            }
+            
+            // 更新文件列表
+            const fileList = document.getElementById('fileList');
+            if (isSingle) {
+                fileList.innerHTML = '';
+            } else {
+                fileList.innerHTML = uploadedFiles.map((file, index) => `
+                    <div class="flex items-center justify-between p-2 hover:bg-gray-100 transition-custom">
+                        <div class="flex items-center flex-1 min-w-0">
+                            <i class="fa fa-file-text-o text-gray-400 mr-2 flex-shrink-0"></i>
+                            <span class="font-medium text-sm truncate">${file.name}</span>
+                            <span class="ml-2 text-xs text-gray-500 flex-shrink-0">${(file.size / 1024).toFixed(1)} KB</span>
+                        </div>
+                        <button class="remove-single-file text-red-400 hover:text-red-600 transition-custom p-1 rounded-full hover:bg-red-50 focus:outline-none focus:ring-1 focus:ring-red-200 active:btn-active ml-2" 
+                                data-file-index="${index}" title="移除此文件">
+                            <i class="fa fa-times text-xs"></i>
+                        </button>
+                    </div>
+                `).join('');
+                
+                fileList.querySelectorAll('.remove-single-file').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        removeSingleFile(parseInt(this.getAttribute('data-file-index')));
+                    });
+                });
+            }
+        }
+
+        // 移除单个文件
+        function removeSingleFile(fileIndex) {
+            if (fileIndex < 0 || fileIndex >= uploadedFiles.length) return;
+            
+            const removedFile = uploadedFiles[fileIndex];
+            uploadedFiles.splice(fileIndex, 1);
+            allFileChannels = allFileChannels.filter(channel => channel.sourceFile !== removedFile.name);
+            originalChannels = allFileChannels;
+            updateFileInfoDisplay();
+            
+            if (uploadedFiles.length === 0) {
+                resetAppState();
+            } else {
+                elements.processBtn.disabled = false;
+                elements.uploadToGist.disabled = true;
+                updateResultDisplay();
+            }
+            
+            showFullScreenMessage(`已移除文件: ${removedFile.name}`, 'success', 2000);
+        }
+
+        // 重置应用状态
+        function resetAppState() {
+            currentFile = null;
+            elements.processBtn.disabled = true;
+            elements.uploadToGist.disabled = true;
+            elements.fileInfo.classList.add('hidden');
+            elements.noResult.innerHTML = `
+                <div class="text-center py-16 text-gray-500">
+                    <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+                        <i class="fa fa-file-o text-2xl text-gray-400"></i>
+                    </div>
+                    <p class="text-gray-600">处理结果将显示在这里</p>
+                    <p class="text-sm mt-2 text-gray-500">请上传文件并点击"开始处理"按钮</p>
+                </div>
+            `;
+            elements.noResult.style.display = 'block';
+            elements.resultContainer.style.display = 'none';
+            elements.exportButtons.classList.add('hidden');
+            elements.resultStats.classList.add('hidden');
+            elements.formatIndicator.classList.add('hidden');
+        }
+
+
+
+        // 初始化
+        function init() {
+            initElements();
+            // 加载配置
+            ConfigManager.loadAllConfigs();
+            initConfigUI();
+            setupEventListeners();
+            
+            window.addEventListener('scroll', function() {
+                document.querySelector('header').classList.toggle('shadow', window.scrollY > 10);
+            });
+            
+            // 配置自动保存功能
+            setupAutoSave();
+        }
+
+        // 设置自动保存（已禁用，只在保存配置时保存）
+        function setupAutoSave() {
+            const configInputs = ['filterKeywords', 'groupNameSort', 'filterGroups', 'sourceIdentifiers', 'blockedSourceIdentifiers', 'modifierWords', 'gistId', 'githubToken', 'gistFileName', 'tvgLogoUrl', 'replaceIpPort'];
+            const configCheckboxes = ['enableSourceSorting', 'keepOnlyBestSource', 'enableTvgLogoReplace', 'enableDuplicateRemoval', 'ruleRemoveBrackets', 'ruleRemoveNumberPrefix', 'ruleRemoveModifiers', 'ruleStandardizeCCTV', 'ruleUppercaseCCTV'];
+            
+            configInputs.forEach(id => {
+                if (elements[id]) {
+                    Utils.bindEvent(elements[id], 'change', updateConfigFromUI);
+                    Utils.bindEvent(elements[id], 'blur', updateConfigFromUI);
+                }
+            });
+            
+            configCheckboxes.forEach(id => {
+                if (elements[id]) {
+                    Utils.bindEvent(elements[id], 'change', updateConfigFromUI);
+                }
+            });
+        }
+
+        // 自动保存配置（已禁用）
+        function autoSaveConfig() {
+            // 此函数已禁用，不再自动保存
+            // 配置只在点击保存配置按钮时保存
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            init();
+            // 初始化时只显示对应格式导出按钮
+            const selectedFormat = elements.displayFormat.value;
+            if (selectedFormat === 'txt') {
+                elements.exportM3U.classList.add('hidden');
+                elements.exportTXT.classList.remove('hidden');
+            } else {
+                elements.exportM3U.classList.remove('hidden');
+                elements.exportTXT.classList.add('hidden');
+            }
+            
+            // 不再自动创建默认配置，让用户手动保存配置
+            // 如果没有当前配置，页面将显示空白配置
+        });
+
+        // 配置导入导出工具
+        const ConfigIO = {
+            exportConfig() {
+                updateConfigFromUI();
+                const configStr = JSON.stringify(config, null, 2);
+                const blob = new Blob([configStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = '直播源文件处理配置.json';
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, 1000);
+            },
+            
+            importConfigFromFile(file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const imported = JSON.parse(e.target.result);
+                        if (typeof imported !== 'object' || !imported) throw new Error('配置格式不正确');
+                        Object.assign(config, imported);
+                        initConfigUI();
+                        Utils.showMessage('配置导入成功', 'success', 2000);
+                    } catch (err) {
+                        Utils.showMessage('配置导入失败: ' + err.message, 'error', 2000);
+                    }
+                };
+                reader.readAsText(file);
+            }
+        };
+        
+        // 全页面弹窗提示
+        function showFullScreenMessage(message, type = 'success', duration = 2000) {
+            let modal = document.getElementById('fullScreenMessageModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'fullScreenMessageModal';
+                modal.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-black/40';
+                modal.innerHTML = `
+                    <div class="bg-white rounded-xl shadow-2xl px-8 py-6 flex flex-col items-center animate-fadeIn">
+                        <i class="fa ${type === 'success' ? 'fa-check-circle text-green-500' : type === 'warning' ? 'fa-exclamation-triangle text-yellow-500' : 'fa-exclamation-circle text-red-500'} text-4xl mb-3"></i>
+                        <div class="text-lg font-semibold mb-1">${message}</div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            } else {
+                modal.querySelector('div').innerHTML = `
+                    <i class="fa ${type === 'success' ? 'fa-check-circle text-green-500' : type === 'warning' ? 'fa-exclamation-triangle text-yellow-500' : 'fa-exclamation-circle text-red-500'} text-4xl mb-3"></i>
+                    <div class="text-lg font-semibold mb-1">${message}</div>
+                `;
+                modal.style.display = 'flex';
+            }
+            setTimeout(() => {
+                if (modal) modal.style.display = 'none';
+            }, duration);
+        }
+
+        // 确认弹窗
+        function showConfirmDialog(message, onConfirm, onCancel = null) {
+            let modal = document.getElementById('confirmDialogModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'confirmDialogModal';
+                modal.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4';
+                document.body.appendChild(modal);
+            }
+            
+            modal.innerHTML = `
+                <div class="bg-white rounded-xl shadow-2xl px-4 sm:px-8 py-4 sm:py-6 flex flex-col items-center animate-fadeIn max-w-sm sm:max-w-md w-full">
+                    <i class="fa fa-exclamation-triangle text-yellow-500 text-3xl sm:text-4xl mb-3 sm:mb-4"></i>
+                    <div class="text-base sm:text-lg font-semibold mb-4 sm:mb-6 text-center">${message}</div>
+                    <div class="flex gap-2 sm:gap-3 w-full">
+                        <button id="confirmCancel" class="flex-1 px-4 sm:px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-custom focus:outline-none focus:ring-2 focus:ring-gray-200 active:btn-active text-sm sm:text-base">
+                            取消
+                        </button>
+                        <button id="confirmOk" class="flex-1 px-4 sm:px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-custom focus:outline-none focus:ring-2 focus:ring-red-500/50 active:btn-active text-sm sm:text-base">
+                            确认
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            modal.style.display = 'flex';
+            
+            // 绑定事件
+            modal.querySelector('#confirmOk').onclick = () => {
+                modal.style.display = 'none';
+                if (onConfirm) onConfirm();
+            };
+            
+            modal.querySelector('#confirmCancel').onclick = () => {
+                modal.style.display = 'none';
+                if (onCancel) onCancel();
+            };
+            
+            // 点击背景关闭
+            modal.onclick = (e) => {
+                if (e.target === modal) {
+                    modal.style.display = 'none';
+                    if (onCancel) onCancel();
+                }
+            };
+        }
+        
+        // 新增：从URL批量下载并解析
+        async function handleUrlFiles(urls) {
+            elements.urlImportStatus.textContent = '正在下载并解析...';
+            let newChannels = [];
+            let newFiles = [];
+            let failed = [];
+            let finished = 0;
+            for (const url of urls) {
+                try {
+                    const resp = await fetch(url);
+                    if (!resp.ok) throw new Error('下载失败');
+                    const text = await resp.text();
+                    const ext = url.split('.').pop().toLowerCase();
+                    const fakeName = `url_${Date.now()}_${Math.floor(Math.random()*10000)}.${ext === 'm3u' || ext === 'txt' ? ext : 'm3u'}`;
+                    // 虚拟文件对象
+                    const fakeFile = { name: fakeName, size: text.length, isRemote: true, url };
+                    newFiles.push(fakeFile);
+                    const fileChannels = parseChannels(text).map(channel => ({
+                        ...channel,
+                        originalName: channel.name,
+                        sourceFile: fakeName
+                    }));
+                    newChannels.push(...fileChannels);
+                } catch (e) {
+                    failed.push(url);
+                }
+                finished++;
+                elements.urlImportStatus.textContent = `已完成 ${finished}/${urls.length}`;
+            }
+            if (newFiles.length) {
+                uploadedFiles.push(...newFiles);
+                currentFile = newFiles[0];
+                allFileChannels.push(...newChannels);
+                originalChannels = allFileChannels;
+                updateFileInfoDisplay();
+                updateResultDisplay();
+                showFullScreenMessage(`成功导入 ${newFiles.length} URL, 共发现 ${newChannels.length} 个直播源`, 'success', 2000);
+            }
+            if (failed.length) {
+                showFullScreenMessage(`以下URL导入失败:\n${failed.join('\n')}`, 'error', 4000);
+            }
+            elements.urlImportStatus.textContent = '';
+        }
+    </script>
+
+    <!-- Gist成功弹窗 -->
+    <div id="gistSuccessModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 transform transition-all duration-300 scale-95 opacity-0" id="gistModalContent">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center">
+                        <i class="fa fa-check-circle text-green-500 text-2xl mr-3"></i>
+                        <h3 class="text-lg font-semibold text-gray-900">gist.Github！</h3>
+                    </div>
+                    <button id="closeGistModal" class="text-gray-400 hover:text-gray-600 transition-colors">
+                        <i class="fa fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Gist页面链接</label>
+                        <div class="flex items-center space-x-2">
+                            <input type="text" id="gistPageLinkInput" readonly class="flex-1 p-2 border border-gray-200 rounded-md bg-gray-50 text-sm">
+                            <button id="copyGistPageLink" class="px-3 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors text-sm">
+                                <i class="fa fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">原始文件链接</label>
+                        <div class="flex items-center space-x-2">
+                            <input type="text" id="gistRawLinkInput" readonly class="flex-1 p-2 border border-gray-200 rounded-md bg-gray-50 text-sm">
+                            <button id="copyGistRawLink" class="px-3 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors text-sm">
+                                <i class="fa fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                    <div class="flex items-start">
+                        <i class="fa fa-info-circle text-blue-500 mr-2 mt-0.5"></i>
+                        <p class="text-sm text-blue-700">
+                            关闭后仍可通过右下角悬浮图标重新打开此弹窗
+                        </p>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button id="closeGistModalBtn" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors">
+                        关闭
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右下角悬浮图标 -->
+    <div id="gistFloatingIcon" class="fixed bottom-6 right-6 z-40 hidden">
+        <div class="bg-green-500 text-white rounded-full p-3 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer transform hover:scale-110" id="gistFloatingBtn">
+            <i class="fa fa-link text-xl"></i>
+        </div>
+    </div>
+</body>
+</html>
