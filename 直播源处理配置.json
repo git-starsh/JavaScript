@@ -1,0 +1,129 @@
+{
+  "直播源处理配置": {
+    "name": "直播源处理配置",
+    "config": {
+      "filterKeywords": [
+        "测试",
+        "25",
+        "注意"
+      ],
+      "duplicateRemoval": {
+        "enabled": true
+      },
+      "groupNameMapping": {
+        "央视": "央视频道",
+        "卫视": "卫视频道",
+        "地方": "地方频道",
+        "影视": "其他频道",
+        "娱乐": "其他频道",
+        "少儿": "其他频道",
+        "纪实": "其他频道",
+        "体育": "其他频道",
+        "综艺": "其他频道",
+        "新闻": "其他频道",
+        "教育": "其他频道",
+        "其他": "其他频道",
+        "央视-MCP": "央视频道",
+        "卫视-MCP": "卫视频道",
+        "其他-MCP": "其他频道",
+        "AV3A频道": "央视频道",
+        "注意事项": "其他频道",
+        "普通频道": "其他频道",
+        "4K杜比视界赛事直播": "其他频道"
+      },
+      "channelNameMapping": {
+        "cctv5p-MCP": "CCTV5+",
+        "cctv164K-HDR-AV3A": "cctv16",
+        "cctv164K-MCP": "cctv16",
+        "Apple TV 4K Dolby Vision F1": "F1超清直播"
+      },
+      "m3uUserAgent": "okHttp/Mod-1.5.0.0",
+      "customGroupRules": {
+        "央视频道": [
+          "CHC",
+          "4K",
+          "8K"
+        ],
+        "地方频道": [
+          "海峡",
+          "康巴",
+          "安多",
+          "农林",
+          "三沙",
+          "延边"
+        ],
+        "其他频道": [
+          "剧场",
+          "高尔夫",
+          "电视指南",
+          "风云音乐",
+          "女性时尚",
+          "央视",
+          "风云",
+          "世界",
+          "兵器",
+          "测试",
+          "25",
+          "钱塘江",
+          "开封",
+          "熊猫",
+          "语",
+          "Doc",
+          "老",
+          "生",
+          "发现",
+          "咪咕视频",
+          "cgtn",
+          "CGTN",
+          "国学"
+        ]
+      },
+      "groupNameSort": [
+        "央视频道",
+        "卫视频道",
+        "地方频道",
+        "其他频道"
+      ],
+      "filterGroups": [],
+      "sourceSorting": {
+        "identifiers": [
+          "av3asfhd",
+          "live.ottiptv.cc/mcp",
+          "live.ottiptv.cc/mg"
+        ],
+        "blockedIdentifiers": [],
+        "enabled": true,
+        "keepOnlyBest": false
+      },
+      "purificationRules": {
+        "removeBrackets": true,
+        "removeNumberPrefix": true,
+        "removeModifiers": true,
+        "standardizeCCTV": true,
+        "uppercaseCCTV": true,
+        "modifierWords": [
+          "-MCP"
+        ]
+      },
+      "gistConfig": {
+        "id": "c935f1184c0a01fca21abce9e0b2546d",
+        "token": "",
+        "fileName": "tv.m3u",
+        "lastUploaded": {
+          "gistUrl": "https://gist.github.com/git-starsh/c935f1184c0a01fca21abce9e0b2546d",
+          "rawUrl": "https://gist.githubusercontent.com/git-starsh/c935f1184c0a01fca21abce9e0b2546d/raw/tv.m3u"
+        }
+      },
+      "tvgLogoConfig": {
+        "enabled": false,
+        "url": "https://gitee.com/IIII-9306/PAV/raw/master/logos/"
+      },
+      "customUA": {
+        "enabled": false,
+        "userAgent": ""
+      }
+    },
+    "timestamp": 1787737047212,
+    "lastModified": 1787737047212
+  }
+}
